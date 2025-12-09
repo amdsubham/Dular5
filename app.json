@@ -1,0 +1,96 @@
+{
+  "expo": {
+    "name": "Dular",
+    "slug": "dular",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo_big.png",
+    "splash": {
+      "image": "",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "scheme": "dular",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/logo_big.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Satoshi-Variable.ttf",
+            "./assets/fonts/Satoshi-VariableItalic.ttf",
+            "./assets/fonts/SpaceMono-Regular.ttf",
+            "./assets/fonts/SpaceMono-Italic.ttf",
+            "./assets/fonts/Roboto/Roboto-Black.ttf",
+            "./assets/fonts/Roboto/Roboto-BlackItalic.ttf",
+            "./assets/fonts/Roboto/Roboto-Bold.ttf",
+            "./assets/fonts/Roboto/Roboto-BoldItalic.ttf",
+            "./assets/fonts/Roboto/Roboto-Italic.ttf",
+            "./assets/fonts/Roboto/Roboto-Light.ttf",
+            "./assets/fonts/Roboto/Roboto-LightItalic.ttf",
+            "./assets/fonts/Roboto/Roboto-Medium.ttf",
+            "./assets/fonts/Roboto/Roboto-MediumItalic.ttf",
+            "./assets/fonts/Roboto/Roboto-Regular.ttf",
+            "./assets/fonts/Roboto/Roboto-Thin.ttf",
+            "./assets/fonts/Roboto/Roboto-ThinItalic.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app needs access to your photos to add pictures to your profile."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/logo_big.png",
+          "color": "#EC4899",
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ]
+        }
+      ],
+      "expo-web-browser"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "The app needs access to your photos to add pictures to your profile.",
+        "NSCameraUsageDescription": "The app needs access to your camera to take photos for your profile."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo_big.png",
+        "backgroundColor": "#000000"
+      },
+      "backgroundColor": "#00000000",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "googleServicesFile": "./google-services.json",
+      "package": "com.amdsubham.dular"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

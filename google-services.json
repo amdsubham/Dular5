@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1097999598856",
+    "project_id": "dular5",
+    "storage_bucket": "dular5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1097999598856:android:5833d0e4ceb4abf8b2d8bd",
+        "android_client_info": {
+          "package_name": "com.santali.dating"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB56kr7yow6oXpXQ4r7gPJ7AD-JYw1eIFA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

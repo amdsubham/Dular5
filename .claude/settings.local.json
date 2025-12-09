@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx expo install:*)",
+      "Bash(node scripts/seed-users.js:*)",
+      "Bash(ls:*)",
+      "Bash(npm init -y)",
+      "Bash(npm install:*)",
+      "Bash(tree:*)",
+      "Bash(npm run build:*)",
+      "Bash(cat:*)",
+      "Bash(export ANDROID_HOME=$HOME/Library/Android/sdk)",
+      "Bash(echo:*)",
+      "Bash(npx eas-cli:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
