@@ -318,59 +318,64 @@ export const EditScreen = () => {
     return (
       <ScaleDecorator>
         <Pressable
-          onLongPress={item ? drag : undefined}
-          disabled={isActive}
-          className="w-[31%] aspect-square relative mx-[1%] mb-2.5"
+          onLongPress={drag}
+          delayLongPress={200}
+          disabled={!item}
+          className="w-[47%] aspect-square mb-2.5"
+          style={{
+            opacity: isActive ? 0.6 : 1,
+          }}
         >
           {item ? (
             <>
-              {imageLoading[index] && (
-                <Box className="absolute inset-0 items-center justify-center bg-background-900/50 rounded-lg z-20">
-                  <ActivityIndicator size="small" color="#fff" />
-                </Box>
-              )}
-              <Image
-                source={{ uri: item }}
-                className="w-full h-full object-cover rounded-lg"
-                alt={`Profile image ${index + 1}`}
-                onLoadStart={() =>
-                  setImageLoading((prev) => ({ ...prev, [index]: true }))
-                }
-                onLoadEnd={() =>
-                  setImageLoading((prev) => ({ ...prev, [index]: false }))
-                }
-                onError={() =>
-                  setImageLoading((prev) => ({ ...prev, [index]: false }))
-                }
-              />
+              <Box className="w-full h-full relative">
+                {imageLoading[index] && (
+                  <Box className="absolute inset-0 items-center justify-center bg-background-900/50 rounded-lg z-20">
+                    <ActivityIndicator size="large" color="#fff" />
+                  </Box>
+                )}
+                <Image
+                  source={{ uri: item }}
+                  className="w-full h-full object-cover rounded-lg"
+                  alt={`Profile image ${index + 1}`}
+                  onLoadStart={() =>
+                    setImageLoading((prev) => ({ ...prev, [index]: true }))
+                  }
+                  onLoadEnd={() =>
+                    setImageLoading((prev) => ({ ...prev, [index]: false }))
+                  }
+                  onError={() =>
+                    setImageLoading((prev) => ({ ...prev, [index]: false }))
+                  }
+                />
+                {index === 0 ? (
+                  <Box className="absolute bottom-2 left-2 bg-secondary-500/80 py-1 px-2.5 rounded-full">
+                    <Text className="text-secondary-900 text-2xs font-medium font-roboto">
+                      Main
+                    </Text>
+                  </Box>
+                ) : (
+                  <Box className="absolute bottom-2 left-2 bg-background-50 h-5 w-5 items-center justify-center rounded-full">
+                    <Text className="text-typography-500 text-2xs font-medium font-roboto">
+                      {index + 1}
+                    </Text>
+                  </Box>
+                )}
+              </Box>
               <Pressable
                 onPress={() => removeImage(index)}
-                className="absolute -top-3 right-2.5 bg-background-950 p-1 rounded-full z-10"
+                className="absolute top-1 right-1 bg-red-600 p-1.5 rounded-full z-40 shadow-lg"
               >
                 <Icon
                   as={RemoveIcon}
-                  className="text-typography-50 h-3 w-3"
+                  className="text-white h-3 w-3"
                 />
               </Pressable>
-              {index === 0 ? (
-                <Box className="absolute bottom-2 left-2 bg-secondary-500/70 py-1 px-2 rounded-full">
-                  <Text className="text-secondary-800 text-2xs">Main</Text>
-                </Box>
-              ) : (
-                <Box className="absolute bottom-2 left-2 bg-background-50 h-5 w-5 items-center justify-center rounded-full">
-                  <Text className="text-typography-500 text-2xs">
-                    {index + 1}
-                  </Text>
-                </Box>
-              )}
             </>
           ) : (
-            <Pressable
-              onPress={() => pickImage(index)}
-              className="w-full h-full rounded-lg items-center justify-center border border-background-100"
-            >
-              <Icon as={AddIcon} size="lg" />
-            </Pressable>
+            <Box className="w-full h-full rounded-lg items-center justify-center border-2 border-dashed border-background-200 bg-background-50">
+              <Icon as={AddIcon} size="lg" className="text-background-400" />
+            </Box>
           )}
         </Pressable>
       </ScaleDecorator>
@@ -428,7 +433,7 @@ export const EditScreen = () => {
     >
       {/* Photos - Moved to top */}
       <Box className="gap-3">
-        <Text className="text-typography-950 text-base font-medium mb-1">
+        <Text className="text-typography-950 text-base font-medium mb-1 font-roboto">
           My Photos & Videos
         </Text>
         <DraggableFlatList
@@ -436,18 +441,23 @@ export const EditScreen = () => {
           onDragEnd={handleDragEnd}
           keyExtractor={(item, index) => `picture-${index}`}
           renderItem={renderDraggableItem}
-          numColumns={3}
+          numColumns={2}
           scrollEnabled={false}
-          containerStyle={{ flexWrap: "wrap" }}
+          containerStyle={{ flexWrap: "wrap", justifyContent: "space-between" }}
         />
         {uploading && (
-          <VStack className="gap-2">
-            <Text className="text-typography-500 text-sm">
-              Uploading images...
-            </Text>
-            <Box className="h-2 bg-background-600 rounded-full overflow-hidden">
+          <VStack className="gap-2 bg-background-50 p-4 rounded-xl">
+            <HStack className="justify-between items-center">
+              <Text className="text-typography-700 text-sm font-medium font-roboto">
+                Uploading images...
+              </Text>
+              <Text className="text-primary-500 text-sm font-bold font-roboto">
+                {uploadProgress}%
+              </Text>
+            </HStack>
+            <Box className="h-2 bg-background-200 rounded-full overflow-hidden">
               <Box
-                className="h-full bg-primary-500"
+                className="h-full bg-primary-500 rounded-full"
                 style={{ width: `${uploadProgress}%` }}
               />
             </Box>
@@ -455,7 +465,7 @@ export const EditScreen = () => {
         )}
         <HStack className="justify-center gap-2 items-center">
           <Icon as={InfoIcon} className="text-typography-500" />
-          <Text className="text-typography-500 text-sm font-medium">
+          <Text className="text-typography-500 text-sm font-medium font-roboto">
             Hold and drag photo to reorder
           </Text>
         </HStack>

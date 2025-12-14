@@ -16,6 +16,7 @@ export interface MatchUser {
   lookingFor: string[];
   distance: number;
   lovePercentage: number;
+  rating?: number; // Rating out of 5
   isActive?: boolean;
   location?: {
     latitude: number;
@@ -90,6 +91,11 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
     const userProfile = await getUserProfile();
     const userPreferences = await getUserPreferences();
 
+    console.log('=== MATCHING DEBUG ===');
+    console.log('Current User ID:', currentUser.uid);
+    console.log('User Preferences:', JSON.stringify(userPreferences, null, 2));
+    console.log('Filters:', JSON.stringify(filters, null, 2));
+
     if (!userProfile || !userPreferences) {
       throw new Error('User profile not found');
     }
@@ -99,62 +105,132 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
 
     // Get list of already swiped users to exclude them
     const swipedUserIds = await getSwipedUserIds();
+    console.log('Already swiped user IDs:', swipedUserIds.length);
 
     // Get current user's blocked users list
     const currentUserDoc = await getDoc(doc(db, 'users', currentUser.uid));
     const blockedUsers = currentUserDoc.data()?.blockedUsers || [];
+    console.log('Blocked users:', blockedUsers.length);
 
     // Build query to fetch potential matches
     const usersRef = collection(db, 'users');
-    let q = query(
-      usersRef,
-      where('onboarding.completed', '==', true),
-      limit(50) // Limit to 50 users for performance
-    );
+
+    // Determine gender filter based on user preferences
+    // If filters.interestedIn is provided, use it; otherwise use userPreferences.interestedIn
+    const genderPreference = filters?.interestedIn && filters.interestedIn.length > 0
+      ? filters.interestedIn
+      : userPreferences.interestedIn && userPreferences.interestedIn.length > 0
+      ? userPreferences.interestedIn
+      : null;
+
+    console.log('Gender Preference for query:', genderPreference);
+
+    let q;
+    let querySnapshot;
 
     // Filter by gender preference if available
-    if (userPreferences.interestedIn && userPreferences.interestedIn.length > 0) {
+    if (genderPreference && genderPreference.length > 0) {
+      console.log('Querying with gender filter:', genderPreference);
+
+      try {
+        q = query(
+          usersRef,
+          where('onboarding.data.gender', 'in', genderPreference),
+          limit(50)
+        );
+        querySnapshot = await getDocs(q);
+        console.log('Total users fetched with gender filter:', querySnapshot.size);
+
+        // If no results, try without gender filter for debugging
+        if (querySnapshot.size === 0) {
+          console.warn('⚠️ No users found with gender filter. Trying without filter to check if users exist...');
+          const testQuery = query(
+            usersRef,
+            limit(10)
+          );
+          const testSnapshot = await getDocs(testQuery);
+          console.log('Total users without gender filter:', testSnapshot.size);
+
+          if (testSnapshot.size > 0) {
+            console.warn('⚠️ Users exist but gender filter returns nothing!');
+            console.warn('This means gender values in database don\'t match the filter.');
+            console.warn('Checking first user gender value...');
+            const firstUser = testSnapshot.docs[0];
+            const firstUserData = firstUser.data();
+            console.warn('First user gender value:', firstUserData.onboarding?.data?.gender);
+            console.warn('Expected one of:', genderPreference);
+          }
+        }
+      } catch (error) {
+        console.error('Error with gender query:', error);
+        // Fallback to query without gender filter
+        q = query(
+          usersRef,
+          limit(50)
+        );
+        querySnapshot = await getDocs(q);
+      }
+    } else {
+      console.log('Querying WITHOUT gender filter - showing all users');
+      // If no gender preference, show all users
       q = query(
         usersRef,
-        where('onboarding.completed', '==', true),
-        where('onboarding.data.gender', 'in', userPreferences.interestedIn),
         limit(50)
       );
+      querySnapshot = await getDocs(q);
+      console.log('Total users fetched:', querySnapshot.size);
     }
-
-    const querySnapshot = await getDocs(q);
     const matches: MatchUser[] = [];
 
     querySnapshot.forEach((docSnapshot) => {
+      const docId = docSnapshot.id;
+      const data = docSnapshot.data();
+
       // Skip current user
-      if (docSnapshot.id === currentUser.uid) return;
+      if (docId === currentUser.uid) {
+        console.log(`Skipping current user: ${docId}`);
+        return;
+      }
 
       // Skip already swiped users
-      if (swipedUserIds.includes(docSnapshot.id)) return;
+      if (swipedUserIds.includes(docId)) {
+        console.log(`Skipping swiped user: ${docId}`);
+        return;
+      }
 
       // Skip blocked users
-      if (blockedUsers.includes(docSnapshot.id)) return;
-
-      const data = docSnapshot.data();
+      if (blockedUsers.includes(docId)) {
+        console.log(`Skipping blocked user: ${docId}`);
+        return;
+      }
 
       // Skip if this user has blocked the current user
       const otherUserBlockedUsers = data.blockedUsers || [];
-      if (otherUserBlockedUsers.includes(currentUser.uid)) return;
+      if (otherUserBlockedUsers.includes(currentUser.uid)) {
+        console.log(`Skipping user who blocked you: ${docId}`);
+        return;
+      }
 
       const onboardingData = data.onboarding?.data || {};
 
-      // Check if user has completed onboarding
-      if (!data.onboarding?.completed) return;
-
       // Calculate age
       const dob = onboardingData.dob;
-      if (!dob) return;
+      if (!dob) {
+        console.log(`Skipping user with no DOB: ${docId}`);
+        return;
+      }
 
       const age = calculateAge(dob);
 
       // Apply age filters
-      if (filters?.minAge && age < filters.minAge) return;
-      if (filters?.maxAge && age > filters.maxAge) return;
+      if (filters?.minAge && age < filters.minAge) {
+        console.log(`Skipping user ${docId}: age ${age} < minAge ${filters.minAge}`);
+        return;
+      }
+      if (filters?.maxAge && age > filters.maxAge) {
+        console.log(`Skipping user ${docId}: age ${age} > maxAge ${filters.maxAge}`);
+        return;
+      }
 
       // Calculate distance if both users have location
       let distance = 0;
@@ -167,7 +243,10 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
         );
 
         // Apply distance filter
-        if (filters?.maxDistance && distance > filters.maxDistance) return;
+        if (filters?.maxDistance && distance > filters.maxDistance) {
+          console.log(`Skipping user ${docId}: distance ${distance}km > maxDistance ${filters.maxDistance}km`);
+          return;
+        }
       }
 
       // Calculate love percentage based on shared interests
@@ -176,7 +255,7 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
 
       // Build match user object
       const matchUser: MatchUser = {
-        uid: docSnapshot.id,
+        uid: docId,
         firstName: onboardingData.firstName || 'User',
         lastName: onboardingData.lastName || '',
         age,
@@ -186,22 +265,38 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
         lookingFor: onboardingData.lookingFor || [],
         distance,
         lovePercentage,
+        rating: data.rating || 0, // Fetch rating from database, default to 0
         isActive: false, // You can implement online status tracking
         location: data.location,
       };
 
+      console.log(`✓ Added match: ${docId} (${onboardingData.firstName}, age: ${age}, rating: ${data.rating || 0})`);
       matches.push(matchUser);
     });
 
-    // Sort by distance (closest first) and love percentage
+    console.log(`Total matches after filtering: ${matches.length}`);
+
+    // Sort all matches by rating, love percentage, and distance
     matches.sort((a, b) => {
-      // Prioritize users with higher love percentage
-      if (Math.abs(a.lovePercentage - b.lovePercentage) > 20) {
-        return b.lovePercentage - a.lovePercentage;
-      }
-      // Then sort by distance
+      // Logic: If user is interested in 'Man', show only men sorted by rating
+      // If interested in 'Woman', show only women sorted by rating
+      // If interested in 'Nonbinary' or multiple/others, show mixed sorted by rating
+
+      // For all cases - sort by rating first
+      // Primary sort: by rating (highest first)
+      const ratingDiff = (b.rating || 0) - (a.rating || 0);
+      if (ratingDiff !== 0) return ratingDiff;
+
+      // Secondary sort: by love percentage
+      const lovePercentageDiff = b.lovePercentage - a.lovePercentage;
+      if (lovePercentageDiff !== 0) return lovePercentageDiff;
+
+      // Tertiary sort: by distance (closest first)
       return a.distance - b.distance;
     });
+
+    console.log('=== MATCHES SORTED ===');
+    console.log('Returning matches:', matches.map(m => `${m.firstName} (rating: ${m.rating})`).join(', '));
 
     return matches;
   } catch (error) {
@@ -390,7 +485,7 @@ export const createMatch = async (user1Id: string, user2Id: string): Promise<str
     const matchId = `${user1Id}_${user2Id}`;
     const matchRef = doc(db, 'matches', matchId);
 
-    await setDoc(matchRef, {
+    const matchDocData = {
       participants: [user1Id, user2Id],
       participantsData: {
         [user1Id]: {
@@ -410,9 +505,28 @@ export const createMatch = async (user1Id: string, user2Id: string): Promise<str
         [user1Id]: 0,
         [user2Id]: 0,
       },
-    });
+    };
+
+    await setDoc(matchRef, matchDocData);
 
     console.log(`Match created: ${matchId}`);
+
+    // Automatically create chat for the match
+    const chatRef = doc(db, 'chats', matchId);
+    await setDoc(chatRef, {
+      participants: matchDocData.participants,
+      participantsData: matchDocData.participantsData,
+      lastMessage: null,
+      lastMessageAt: null,
+      unreadCount: matchDocData.unreadCount,
+      typing: {
+        [user1Id]: false,
+        [user2Id]: false,
+      },
+      createdAt: new Date(),
+    });
+
+    console.log(`Chat created automatically for match: ${matchId}`);
 
     // Send push notifications to both users
     const user1Name = `${user1OnboardingData.firstName} ${user1OnboardingData.lastName}`.trim();

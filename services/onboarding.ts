@@ -1,6 +1,7 @@
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { getCurrentUser } from './auth';
+import { analytics } from './analytics';
 
 export type OnboardingStep =
   | 'name'
@@ -148,8 +149,62 @@ export const updateOnboardingProgress = async (
         createdAt: new Date(),
       });
     }
+
+    // Track onboarding step completion
+    await analytics.trackOnboardingStep(step, true, stepData);
+
+    // Track specific onboarding events
+    if (step === 'name' && stepData) {
+      await analytics.updateUserProperties({
+        firstName: stepData.firstName,
+        lastName: stepData.lastName,
+      });
+    } else if (step === 'dob' && stepData) {
+      await analytics.updateUserProperties({
+        dateOfBirth: stepData.dob,
+      });
+    } else if (step === 'gender' && stepData) {
+      await analytics.updateUserProperties({
+        gender: stepData.gender,
+      });
+    } else if (step === 'interest' && stepData) {
+      await analytics.updateUserProperties({
+        interestedIn: stepData.interestedIn,
+      });
+    } else if (step === 'looking-for' && stepData) {
+      await analytics.updateUserProperties({
+        lookingFor: stepData.lookingFor,
+      });
+    } else if (step === 'pictures' && stepData) {
+      await analytics.track('profile_pictures_uploaded', {
+        count: stepData.pictures?.length || 0,
+      });
+    } else if (step === 'interests' && stepData) {
+      await analytics.updateUserProperties({
+        interests: stepData.interests,
+      });
+    } else if (step === 'location' && stepData) {
+      await analytics.updateUserProperties({
+        hasLocation: stepData.latitude !== null && stepData.longitude !== null,
+      });
+    }
+
+    // Track onboarding completion
+    if (completed) {
+      await analytics.track('onboarding_completed', {
+        totalSteps: ONBOARDING_STEPS.length,
+        completionTime: new Date().toISOString(),
+      });
+    }
   } catch (error) {
     console.error('Error updating onboarding progress:', error);
+
+    // Track onboarding error
+    await analytics.trackError(error as Error, {
+      action: 'onboarding_update',
+      step,
+    });
+
     throw error;
   }
 };

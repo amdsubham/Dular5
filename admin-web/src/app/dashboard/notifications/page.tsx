@@ -17,6 +17,7 @@ export default function NotificationsPage() {
   const [sendToAll, setSendToAll] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [sending, setSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<UserFilters>({});
@@ -105,7 +106,12 @@ export default function NotificationsPage() {
     setSending(true);
 
     try {
-      const notification = { title, body };
+      const notification: any = { title, body };
+
+      // Add image if provided
+      if (imageUrl.trim()) {
+        notification.image = imageUrl.trim();
+      }
 
       if (sendToAll) {
         await sendNotificationToAllUsers(notification);
@@ -118,6 +124,7 @@ export default function NotificationsPage() {
       alert('Notification sent successfully!');
       setTitle('');
       setBody('');
+      setImageUrl('');
       setSelectedUserIds([]);
       setSendToAll(false);
     } catch (error) {
@@ -166,6 +173,22 @@ export default function NotificationsPage() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Image URL (Optional)
+              </label>
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Add an image URL to display in the notification (must be a publicly accessible URL)
+              </p>
+            </div>
+
             <div className="border-t pt-4">
               <h3 className="text-sm font-medium text-gray-700 mb-3">Recipients</h3>
 
@@ -212,10 +235,22 @@ export default function NotificationsPage() {
           </form>
 
           {/* Preview */}
-          {(title || body) && (
+          {(title || body || imageUrl) && (
             <div className="mt-6 border-t pt-6">
               <h3 className="text-sm font-medium text-gray-700 mb-3">Preview</h3>
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                {imageUrl && (
+                  <div className="mb-3">
+                    <img
+                      src={imageUrl}
+                      alt="Notification"
+                      className="w-full h-32 object-cover rounded-lg"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
                 <div className="font-semibold text-gray-900 mb-1">{title || 'Title'}</div>
                 <div className="text-sm text-gray-700">{body || 'Message body'}</div>
               </div>

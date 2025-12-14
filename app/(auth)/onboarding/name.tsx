@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollView } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
 import { Progress } from "@/components/ui/progress";
 import { Box } from "@/components/ui/box";
@@ -28,46 +29,55 @@ const name = () => {
   };
 
   return (
-    <Box className="flex-1 bg-background-0 gap-4 justify-start items-center pb-[100px]">
-      <Box className="flex-1 justify-start items-start gap-11 px-5 top-11 w-[100%]">
-        <Progress
-          value={(1 / 7) * 100}
-          className="w-1/2 mx-auto rounded-full h-1 bg-background-600"
-        >
-          <ProgressFilledTrack />
-        </Progress>
+    <Box className="flex-1 bg-background-0">
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: Math.max(insets.bottom + 80, 100),
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Box className="flex-1 justify-start items-start gap-11 px-5 pt-11 w-[100%]">
+          <Progress
+            value={(1 / 7) * 100}
+            className="w-1/2 mx-auto rounded-full h-1 bg-background-600"
+          >
+            <ProgressFilledTrack />
+          </Progress>
 
-        <VStack className="gap-6 w-full">
-          <Heading className="font-roboto font-semibold text-2xl">
-            What is your name?
-          </Heading>
+          <VStack className="gap-6 w-full">
+            <Heading className="font-roboto font-semibold text-2xl">
+              What is your name?
+            </Heading>
 
-          <VStack className="gap-4">
-            <Input className="rounded-lg" size="lg">
-              <InputField 
-                placeholder="First Name" 
-                value={firstName}
-                onChangeText={setFirstName}
-              />
-            </Input>
-            <Input className="rounded-lg" size="lg">
-              <InputField 
-                placeholder="Last Name" 
-                value={lastName}
-                onChangeText={setLastName}
-              />
-            </Input>
+            <VStack className="gap-4">
+              <Input className="rounded-lg" size="lg">
+                <InputField
+                  placeholder="First Name"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                />
+              </Input>
+              <Input className="rounded-lg" size="lg">
+                <InputField
+                  placeholder="Last Name"
+                  value={lastName}
+                  onChangeText={setLastName}
+                />
+              </Input>
+            </VStack>
+
+            <InfoOnboarding info="This will be used to match you to people" />
           </VStack>
-
-          <InfoOnboarding info="This will be used to match you to people" />
-        </VStack>
-      </Box>
+        </Box>
+      </ScrollView>
       <Fab
         size="lg"
         onPress={handleNext}
         isDisabled={!firstName.trim() || !lastName.trim()}
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
-        style={{ marginBottom: -1 * insets.bottom }}
+        style={{ marginBottom: Math.max(insets.bottom, 20) }}
       >
         <FabIcon as={ChevronRightIcon} />
       </Fab>

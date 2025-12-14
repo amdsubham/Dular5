@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getCurrentUser } from '@/services/auth';
 import { subscribeToChats } from '@/services/messaging';
+import { registerForPushNotifications, savePushTokenToFirestore } from '@/services/notifications';
 
 interface NotificationContextType {
   unreadChatsCount: number;
@@ -29,6 +30,25 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const currentUser = getCurrentUser();
     if (!currentUser) return;
+
+    // Register for push notifications when user is logged in
+    const setupPushNotifications = async () => {
+      console.log('🔔 Setting up push notifications...');
+      try {
+        const pushToken = await registerForPushNotifications();
+        if (pushToken) {
+          console.log('📱 Push token obtained:', pushToken);
+          await savePushTokenToFirestore(pushToken);
+          console.log('✅ Push token saved to Firestore');
+        } else {
+          console.warn('⚠️ Could not get push token');
+        }
+      } catch (error) {
+        console.error('❌ Error setting up push notifications:', error);
+      }
+    };
+
+    setupPushNotifications();
 
     // Subscribe to chats to get unread counts
     const unsubscribe = subscribeToChats((chats) => {

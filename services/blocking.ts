@@ -210,3 +210,36 @@ export const unmatchUser = async (userId: string): Promise<boolean> => {
     return false;
   }
 };
+
+/**
+ * Report a user
+ */
+export const reportUser = async (
+  reportedUserId: string,
+  reason: string,
+  description?: string
+): Promise<boolean> => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    // Create a report document
+    const reportRef = doc(collection(db, 'reports'));
+    await setDoc(reportRef, {
+      reporterId: currentUser.uid,
+      reportedUserId: reportedUserId,
+      reason: reason,
+      description: description || '',
+      status: 'pending', // pending, reviewed, resolved
+      createdAt: serverTimestamp(),
+    });
+
+    console.log(`✅ User ${reportedUserId} reported successfully`);
+    return true;
+  } catch (error) {
+    console.error('Error reporting user:', error);
+    return false;
+  }
+};

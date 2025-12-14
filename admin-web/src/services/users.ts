@@ -155,9 +155,16 @@ export const filterUsers = async (filters: UserFilters): Promise<UserProfile[]> 
     if (filters.gender) {
       console.log('Applying gender filter:', filters.gender);
       users = users.filter(user => {
+        // Check both locations for gender data
         const gender = user.onboarding?.data?.gender || user.gender;
         console.log('User gender:', gender, 'for user:', user.uid);
-        if (!gender || !filters.gender) return false;
+
+        // Skip users without gender data
+        if (!gender) {
+          console.log('User has no gender data, skipping');
+          return false;
+        }
+
         // Case-insensitive comparison
         const matches = gender.toLowerCase() === filters.gender.toLowerCase();
         console.log('Gender matches:', matches, `(${gender.toLowerCase()} === ${filters.gender.toLowerCase()})`);

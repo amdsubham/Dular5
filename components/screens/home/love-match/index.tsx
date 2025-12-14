@@ -25,17 +25,69 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 const AnimatedText = Animated.createAnimatedComponent(Text);
 
+export interface MatchData {
+  matchId: string;
+  matchedUser: {
+    uid: string;
+    firstName: string;
+    lastName: string;
+    profileImage: string | null;
+  };
+  currentUser: {
+    uid: string;
+    firstName: string;
+    lastName: string;
+    profileImage: string | null;
+  };
+}
+
 export const LoveMatchBottomSheet = ({
   isOpen,
   setIsOpen,
+  matchData,
 }: {
   isOpen: boolean;
   setIsOpen: (value: boolean) => void;
+  matchData?: MatchData | null;
 }) => {
   const router = useRouter();
+
+  console.log('🎭 LoveMatchBottomSheet render - isOpen:', isOpen, 'matchData:', matchData);
+
+  // Always render the BottomSheet, but it won't open if no matchData
+  const currentUserName = matchData ? `${matchData.currentUser.firstName} ${matchData.currentUser.lastName}`.trim() : 'User';
+  const matchedUserName = matchData ? `${matchData.matchedUser.firstName} ${matchData.matchedUser.lastName}`.trim() : 'Match';
+
+  if (matchData) {
+    console.log('👥 Match between:', currentUserName, 'and', matchedUserName);
+  }
+  console.log('📱 BottomSheet isOpen:', isOpen);
+
+  const handleSendMessage = () => {
+    if (!matchData) return;
+    setIsOpen(false);
+    router.push({
+      pathname: "/(protected)/chat/[id]" as any,
+      params: {
+        id: matchData.matchId,
+        userId: matchData.matchedUser.uid,
+        userName: matchedUserName,
+      },
+    });
+  };
+
+  const handleViewProfile = () => {
+    if (!matchData) return;
+    setIsOpen(false);
+    router.push({
+      pathname: "/(protected)/user-profile/[id]" as any,
+      params: { id: matchData.matchedUser.uid },
+    });
+  };
+
   return (
     <BottomSheet
-      isOpen={isOpen}
+      isOpen={isOpen && !!matchData}
       index={0}
       enableDynamicSizing
       enableOverDrag={false}
@@ -78,14 +130,22 @@ export const LoveMatchBottomSheet = ({
 
             <HStack className="justify-center items-center h-[210px] w-[440px]">
               <AnimatedImage
-                source={require("@/assets/images/common/match_1.png")}
+                source={
+                  matchData?.currentUser?.profileImage
+                    ? { uri: matchData.currentUser.profileImage }
+                    : require("@/assets/images/common/match_1.png")
+                }
                 className="h-[210px] w-[300px] rounded-lg absolute left-0"
                 contentFit="contain"
                 alt="match"
                 entering={BounceInLeft.delay(200)}
               />
               <AnimatedImage
-                source={require("@/assets/images/common/match_2.png")}
+                source={
+                  matchData?.matchedUser?.profileImage
+                    ? { uri: matchData.matchedUser.profileImage }
+                    : require("@/assets/images/common/match_2.png")
+                }
                 className="h-[210px] w-[300px] rounded-lg absolute right-0"
                 contentFit="contain"
                 alt="match"
@@ -100,7 +160,7 @@ export const LoveMatchBottomSheet = ({
             </HStack>
             <AnimatedText entering={FadeInDown.delay(800)}>
               <Text className="font-bold">You</Text> and{" "}
-              <Text className="font-bold">Victoria</Text> liked each other
+              <Text className="font-bold">{matchedUserName}</Text> liked each other
             </AnimatedText>
           </Box>
           <AnimatedBox
@@ -109,10 +169,7 @@ export const LoveMatchBottomSheet = ({
           >
             <Button
               size="lg"
-              onPress={() => {
-                setIsOpen(false);
-                router.push("/messages/1");
-              }}
+              onPress={handleSendMessage}
             >
               <ButtonText className="text-typography-950 data-[active=true]:text-typography-900">
                 Send Message
@@ -121,6 +178,7 @@ export const LoveMatchBottomSheet = ({
             <Button
               size="lg"
               className="bg-transparent data-[active=true]:bg-background-50"
+              onPress={handleViewProfile}
             >
               <ButtonText className="text-typography-950 data-[active=true]:text-typography-900">
                 View Profile

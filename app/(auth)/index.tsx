@@ -7,9 +7,9 @@ import { Text } from "@/components/ui/text";
 import { ChevronRightIcon } from "@/components/ui/icon";
 import { Fab, FabIcon } from "@/components/ui/fab";
 import { sendOTP } from "@/services/auth";
-import { Alert } from "react-native";
-import { FirebaseRecaptcha } from "@/components/shared/firebase-recaptcha";
+import { Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import { app } from "@/config/firebase";
 
 const INSTRUCTIONS_TEXT = [
   { loginInstruction: "Please enter your mobile number" },
@@ -24,7 +24,7 @@ export default function Index() {
   const [isValid, setIsValid] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
+  const recaptchaVerifier = useRef(null);
 
   const handleValidationChange = (valid: boolean) => {
     setIsValid(valid);
@@ -40,19 +40,13 @@ export default function Index() {
       return;
     }
 
-    if (!recaptchaVerifier.current) {
-      Alert.alert("Error", "reCAPTCHA verifier not initialized");
-      return;
-    }
-
     console.log("Sending OTP to:", phoneNumber);
-    console.log("reCAPTCHA verifier ref:", recaptchaVerifier.current);
     setLoading(true);
-    
+
     try {
-      // Ensure reCAPTCHA modal is ready
       console.log("Starting OTP send process...");
-      
+
+      // Use the reCAPTCHA verifier for phone authentication
       const result = await sendOTP(phoneNumber, recaptchaVerifier.current);
       console.log("OTP Result:", result);
       
@@ -93,32 +87,54 @@ export default function Index() {
   const insets = useSafeAreaInsets();
 
   return (
-    <Box className="flex-1 bg-background-0 gap-4 justify-start items-center pb-[100px]">
-      {/* <OnboardingHeader/> */}
-      <Box className="flex-1 justify-start items-center gap-12 px-5 top-20">
-        <Box className="flex justify-start gap-3">
-          <Text className="font-roboto text-2xl font-semibold leading-7">
-            {INSTRUCTIONS_TEXT[0].loginInstruction}
-          </Text>
-          <Text className="font-roboto text-typography-500 leading-6">
-            {INSTRUCTIONS_TEXT[1].loginSubInstruction}
-          </Text>
+    <>
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={app.options}
+        attemptInvisibleVerification={true}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1 bg-background-0"
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingBottom: Math.max(insets.bottom + 80, 100),
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+        <Box className="flex-1 justify-start items-center gap-12 px-5 pt-20">
+          <Box className="flex justify-start gap-3">
+            <Text className="font-roboto text-2xl font-semibold leading-7">
+              {INSTRUCTIONS_TEXT[0].loginInstruction}
+            </Text>
+            <Text className="font-roboto text-typography-500 leading-6">
+              {INSTRUCTIONS_TEXT[1].loginSubInstruction}
+            </Text>
+          </Box>
+          <PhoneInput
+            onPhoneChange={handlePhoneChange}
+            onValidationChange={handleValidationChange}
+          />
         </Box>
-        <PhoneInput
-          onPhoneChange={handlePhoneChange}
-          onValidationChange={handleValidationChange}
-        />
-      </Box>
-      <Fab
+        </ScrollView>
+        <Fab
         size="lg"
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
-        style={{ marginBottom: -1 * insets.bottom }}
+        style={{ marginBottom: Math.max(insets.bottom, 20) }}
         isDisabled={!isValid || loading}
         onPress={handleSendOTP}
       >
-        <FabIcon as={ChevronRightIcon} />
-      </Fab>
-      <FirebaseRecaptcha ref={recaptchaVerifier} attemptInvisibleVerification={false} />
-    </Box>
+        {loading ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <FabIcon as={ChevronRightIcon} />
+        )}
+        </Fab>
+      </KeyboardAvoidingView>
+    </>
   );
 }

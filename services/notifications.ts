@@ -175,7 +175,14 @@ export const sendMessageNotification = async (
   messageText: string,
   chatId: string
 ): Promise<void> => {
-  await sendPushNotification(
+  console.log('💬 Preparing message notification:', {
+    to: userId,
+    from: senderName,
+    message: messageText.substring(0, 50) + (messageText.length > 50 ? '...' : ''),
+    chatId,
+  });
+
+  const success = await sendPushNotification(
     userId,
     senderName,
     messageText,
@@ -185,6 +192,12 @@ export const sendMessageNotification = async (
       screen: 'chat',
     }
   );
+
+  if (success) {
+    console.log('✅ Message notification delivered');
+  } else {
+    console.warn('⚠️ Message notification failed to deliver');
+  }
 };
 
 /**

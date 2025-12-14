@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Pressable } from "react-native";
 import { FilterIcon, LogoIcon } from "@/components/shared/icons";
 import { Box } from "@/components/ui/box";
@@ -11,6 +11,7 @@ import { FilterBottomSheet } from "@/components/screens/home/filter";
 import Animated, { FadeInRight } from "react-native-reanimated";
 import SwipeScreen from "@/components/screens/home/swipe-screen/index-firestore";
 import { useFilters } from "@/contexts/FilterContext";
+import { fixCurrentUserOnboarding } from "@/services/fix-onboarding";
 
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 function Header() {
@@ -106,6 +107,11 @@ function ExploreLayout() {
 }
 
 export default function Index() {
+  // Auto-fix onboarding.completed flag if needed
+  useEffect(() => {
+    fixCurrentUserOnboarding().catch(console.error);
+  }, []);
+
   return (
     <>
       <Header />

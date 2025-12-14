@@ -7,7 +7,7 @@ import { OTPComponent } from "@/components/shared/otp-input";
 import { ChevronRightIcon } from "@/components/ui/icon";
 import { Fab, FabIcon } from "@/components/ui/fab";
 import { verifyOTP } from "@/services/auth";
-import { Alert } from "react-native";
+import { Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 
 const INSTRUCTIONS_TEXT = [
   {
@@ -50,28 +50,44 @@ export default function Otp() {
 
   const insets = useSafeAreaInsets();
   return (
-    <Box className="flex-1 bg-background-0 gap-4 justify-start items-center pb-[100px]">
-      {/* <OnboardingHeader /> */}
-      <Box className="flex-1 justify-start items-center gap-12 px-5 top-20">
-        <Box className="flex justify-start gap-3">
-          <Text className="font-roboto text-2xl font-semibold leading-7">
-            {INSTRUCTIONS_TEXT[0].otpInstruction}
-          </Text>
-          <Text className="font-roboto text-typography-500 leading-6">
-            {INSTRUCTIONS_TEXT[0].otpSubInstruction}
-          </Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-background-0"
+      keyboardVerticalOffset={0}
+    >
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: Math.max(insets.bottom + 80, 100),
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Box className="flex-1 justify-start items-center gap-12 px-5 pt-20">
+          <Box className="flex justify-start gap-3">
+            <Text className="font-roboto text-2xl font-semibold leading-7">
+              {INSTRUCTIONS_TEXT[0].otpInstruction}
+            </Text>
+            <Text className="font-roboto text-typography-500 leading-6">
+              {INSTRUCTIONS_TEXT[0].otpSubInstruction}
+            </Text>
+          </Box>
+          <OTPComponent onComplete={handleOtpChange} />
         </Box>
-        <OTPComponent onComplete={handleOtpChange} />
-      </Box>
+      </ScrollView>
       <Fab
         size="lg"
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
         isDisabled={otpValue.length !== 6 || loading}
         onPress={handleVerifyOTP}
-        style={{ marginBottom: -1 * insets.bottom }}
+        style={{ marginBottom: Math.max(insets.bottom, 20) }}
       >
-        <FabIcon as={ChevronRightIcon} />
+        {loading ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <FabIcon as={ChevronRightIcon} />
+        )}
       </Fab>
-    </Box>
+    </KeyboardAvoidingView>
   );
 }

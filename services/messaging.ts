@@ -39,6 +39,12 @@ export interface Chat {
       firstName: string;
       lastName: string;
       profileImage: string | null;
+      isOnline?: boolean;
+      lastSeen?: Date | null;
+      location?: {
+        latitude: number;
+        longitude: number;
+      };
     };
   };
   lastMessage: string | null;
@@ -49,6 +55,7 @@ export interface Chat {
   typing: {
     [userId: string]: boolean;
   };
+  createdAt?: Date;
 }
 
 /**
@@ -148,8 +155,22 @@ export const sendMessage = async (
 
     // Send push notification to other user
     if (otherUserId) {
-      const senderName = chatData.participantsData[currentUser.uid]?.firstName || 'Someone';
-      sendMessageNotification(otherUserId, senderName, text.trim(), chatId).catch(console.error);
+      const senderData = chatData.participantsData[currentUser.uid];
+      const senderName = senderData?.firstName
+        ? `${senderData.firstName} ${senderData.lastName || ''}`.trim()
+        : 'Someone';
+
+      console.log('📲 Sending push notification to:', otherUserId, 'from:', senderName);
+
+      sendMessageNotification(otherUserId, senderName, text.trim(), chatId)
+        .then(() => {
+          console.log('✅ Push notification sent successfully');
+        })
+        .catch((error) => {
+          console.error('❌ Failed to send push notification:', error);
+        });
+    } else {
+      console.warn('⚠️ No other user ID found, cannot send notification');
     }
 
     return true;
@@ -274,25 +295,53 @@ export const subscribeToChats = (
     const blockedUsers = userDoc.data()?.blockedUsers || [];
 
     const chats: Chat[] = [];
-    snapshot.forEach((chatDoc) => {
+
+    // Process each chat
+    for (const chatDoc of snapshot.docs) {
       const data = chatDoc.data();
 
       // Filter out chats with blocked users
       const otherUserId = data.participants.find((id: string) => id !== currentUser.uid);
       if (otherUserId && blockedUsers.includes(otherUserId)) {
-        return; // Skip this chat
+        continue; // Skip this chat
+      }
+
+      // Fetch online status and location for ALL participants (including current user)
+      const enrichedParticipantsData = { ...data.participantsData };
+
+      for (const userId of data.participants) {
+        try {
+          const userDocRef = doc(db, 'users', userId);
+          const userSnapshot = await getDoc(userDocRef);
+
+          if (userSnapshot.exists()) {
+            const userData = userSnapshot.data();
+            enrichedParticipantsData[userId] = {
+              ...enrichedParticipantsData[userId],
+              isOnline: userData.isOnline || false,
+              lastSeen: userData.lastSeen?.toDate() || null,
+              location: userData.location ? {
+                latitude: userData.location.latitude,
+                longitude: userData.location.longitude,
+              } : undefined,
+            };
+          }
+        } catch (error) {
+          console.error(`Error fetching user data for ${userId}:`, error);
+        }
       }
 
       chats.push({
         id: chatDoc.id,
         participants: data.participants,
-        participantsData: data.participantsData,
+        participantsData: enrichedParticipantsData,
         lastMessage: data.lastMessage,
         lastMessageAt: data.lastMessageAt?.toDate() || null,
         unreadCount: data.unreadCount || {},
         typing: data.typing || {},
+        createdAt: data.createdAt?.toDate() || null,
       });
-    });
+    }
 
     // Sort by last message time
     chats.sort((a, b) => {
@@ -481,9 +530,21 @@ export const sendMessageWithImage = async (
 
       // Send push notification
       if (otherUserId) {
-        const senderName = chatData.participantsData[currentUser.uid]?.firstName || 'Someone';
+        const senderData = chatData.participantsData[currentUser.uid];
+        const senderName = senderData?.firstName
+          ? `${senderData.firstName} ${senderData.lastName || ''}`.trim()
+          : 'Someone';
         const messageText = caption || '📷 Sent a photo';
-        sendMessageNotification(otherUserId, senderName, messageText, chatId).catch(console.error);
+
+        console.log('📲 Sending image notification to:', otherUserId, 'from:', senderName);
+
+        sendMessageNotification(otherUserId, senderName, messageText, chatId)
+          .then(() => {
+            console.log('✅ Image notification sent successfully');
+          })
+          .catch((error) => {
+            console.error('❌ Failed to send image notification:', error);
+          });
       }
     }
 
@@ -491,5 +552,38 @@ export const sendMessageWithImage = async (
   } catch (error) {
     console.error('Error sending message with image:', error);
     return false;
+  }
+};
+
+/**
+ * Get user IDs who have liked the current user (pending likes)
+ * Returns users who swiped right on you but you haven't matched with yet
+ */
+export const getUsersWhoLikedMe = async (): Promise<string[]> => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return [];
+
+    // Query swipes where current user is the swiped user and action is 'like'
+    const swipesRef = collection(db, 'swipes');
+    const q = query(
+      swipesRef,
+      where('swipedUserId', '==', currentUser.uid),
+      where('action', '==', 'like')
+    );
+
+    const querySnapshot = await getDocs(q);
+    const likedByUserIds: string[] = [];
+
+    querySnapshot.forEach((docSnapshot) => {
+      const data = docSnapshot.data();
+      likedByUserIds.push(data.swiperId);
+    });
+
+    console.log(`📋 Found ${likedByUserIds.length} users who liked you`);
+    return likedByUserIds;
+  } catch (error) {
+    console.error('Error getting users who liked me:', error);
+    return [];
   }
 };

@@ -4,6 +4,7 @@ import { collection, addDoc, Timestamp } from 'firebase/firestore';
 export interface PushNotificationPayload {
   title: string;
   body: string;
+  image?: string;
   data?: Record<string, any>;
 }
 

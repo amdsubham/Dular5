@@ -11,6 +11,8 @@ import { BottomSheetModalProvider } from "@/components/shared/bottom-sheet";
 import { SplashScreen } from "@/components/shared/splash-screen";
 import { FilterProvider } from "@/contexts/FilterContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 
 // Prevent native splash screen from auto-hiding
 SplashScreenExpo.preventAutoHideAsync();
@@ -86,21 +88,25 @@ export default function RootLayout() {
 
   return (
     <GluestackUIProvider mode={colorMode}>
-      <FilterProvider>
-        <NotificationProvider>
-          <StatusBar
-            barStyle={colorMode === "dark" ? "light-content" : "dark-content"}
-            backgroundColor={colorMode === "light" ? "#fff" : "#121212"}
-          />
-          <SafeAreaView className="flex-1 bg-background-0">
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <BottomSheetModalProvider>
-                <Slot />
-              </BottomSheetModalProvider>
-            </GestureHandlerRootView>
-          </SafeAreaView>
-        </NotificationProvider>
-      </FilterProvider>
+      <AnalyticsProvider>
+        <FilterProvider>
+          <NotificationProvider>
+            <SubscriptionProvider>
+              <StatusBar
+                barStyle={colorMode === "dark" ? "light-content" : "dark-content"}
+                backgroundColor={colorMode === "light" ? "#fff" : "#121212"}
+              />
+              <SafeAreaView className="flex-1 bg-background-0">
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <BottomSheetModalProvider>
+                    <Slot />
+                  </BottomSheetModalProvider>
+                </GestureHandlerRootView>
+              </SafeAreaView>
+            </SubscriptionProvider>
+          </NotificationProvider>
+        </FilterProvider>
+      </AnalyticsProvider>
     </GluestackUIProvider>
   );
 }

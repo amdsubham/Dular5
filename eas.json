@@ -19,6 +19,10 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_NO_CAPABILITY_SYNC": "1",
+        "EXPO_NO_GIT_STATUS": "1"
       }
     },
     "production": {

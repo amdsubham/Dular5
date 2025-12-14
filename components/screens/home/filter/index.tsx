@@ -57,11 +57,15 @@ export const FilterBottomSheet = ({
         );
       }}
     >
-      <BottomSheetContent className="border-0 bg-background-0 p-3 flex flex-col gap-5 h-max">
-        <Text className="text-typography-950 font-semibold text-lg">
+      <BottomSheetContent className="border-0 bg-background-0 flex flex-col h-full">
+        <Text className="text-typography-950 font-semibold text-lg px-3 pt-3">
           Filter
         </Text>
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          className="flex-1"
+          contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
+        >
           <Accordion
             size="md"
             variant="filled"
@@ -103,7 +107,8 @@ export const FilterBottomSheet = ({
         </ScrollView>
         <Button
           size="lg"
-          className="w-full"
+          className="w-full mx-3 mb-3"
+          style={{ width: 'calc(100% - 24px)' }}
           onPress={() => {
             setIsOpen(false);
           }}

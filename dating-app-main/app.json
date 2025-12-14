@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "theappmarket-dating-app",
+    "slug": "theappmarket-dating-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo_big.png",
+    "splash": {
+      "image": "",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "scheme": "theappmarket-dating-app",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo_big.png",
+        "backgroundColor": "#000000"
+      },
+      "backgroundColor": "#00000000"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/logo_big.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Satoshi-Variable.ttf",
+            "./assets/fonts/Satoshi-VariableItalic.ttf",
+            "./assets/fonts/SpaceMono-Regular.ttf",
+            "./assets/fonts/SpaceMono-Italic.ttf",
+            "./assets/fonts/Roboto/Roboto-Black.ttf",
+            "./assets/fonts/Roboto/Roboto-BlackItalic.ttf",
+            "./assets/fonts/Roboto/Roboto-Bold.ttf",
+            "./assets/fonts/Roboto/Roboto-BoldItalic.ttf",
+            "./assets/fonts/Roboto/Roboto-Italic.ttf",
+            "./assets/fonts/Roboto/Roboto-Light.ttf",
+            "./assets/fonts/Roboto/Roboto-LightItalic.ttf",
+            "./assets/fonts/Roboto/Roboto-Medium.ttf",
+            "./assets/fonts/Roboto/Roboto-MediumItalic.ttf",
+            "./assets/fonts/Roboto/Roboto-Regular.ttf",
+            "./assets/fonts/Roboto/Roboto-Thin.ttf",
+            "./assets/fonts/Roboto/Roboto-ThinItalic.ttf"
+          ]
+        }
+      ],
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

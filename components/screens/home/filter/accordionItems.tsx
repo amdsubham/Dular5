@@ -40,19 +40,19 @@ export const accordionItems = [
 
       return (
         <CheckboxGroup value={value} onChange={handleChange} className="gap-3">
-          <Checkbox value="men" size="md">
+          <Checkbox value="Man" size="md">
             <CheckboxIndicator>
               <CheckboxIcon as={CheckIcon} />
             </CheckboxIndicator>
             <CheckboxLabel>Men</CheckboxLabel>
           </Checkbox>
-          <Checkbox value="women" size="md">
+          <Checkbox value="Woman" size="md">
             <CheckboxIndicator>
               <CheckboxIcon as={CheckIcon} />
             </CheckboxIndicator>
             <CheckboxLabel>Women</CheckboxLabel>
           </Checkbox>
-          <Checkbox value="non-binary" size="md">
+          <Checkbox value="Nonbinary" size="md">
             <CheckboxIndicator>
               <CheckboxIcon as={CheckIcon} />
             </CheckboxIndicator>
@@ -168,29 +168,23 @@ export const accordionItems = [
 
       return (
         <CheckboxGroup value={value} onChange={handleChange} className="gap-3">
-          <Checkbox value="long-term">
+          <Checkbox value="casual-dates">
             <CheckboxIndicator>
               <CheckboxIcon as={CheckIcon} />
             </CheckboxIndicator>
-            <CheckboxLabel>Long term relationship</CheckboxLabel>
+            <CheckboxLabel>Casual Dates</CheckboxLabel>
           </Checkbox>
-          <Checkbox value="short-term">
+          <Checkbox value="long-term-relationship">
             <CheckboxIndicator>
               <CheckboxIcon as={CheckIcon} />
             </CheckboxIndicator>
-            <CheckboxLabel>Fun and casual dates</CheckboxLabel>
+            <CheckboxLabel>Long term Relationship</CheckboxLabel>
           </Checkbox>
-          <Checkbox value="no-commitment">
+          <Checkbox value="lets-see">
             <CheckboxIndicator>
               <CheckboxIcon as={CheckIcon} />
             </CheckboxIndicator>
-            <CheckboxLabel>No commitment</CheckboxLabel>
-          </Checkbox>
-          <Checkbox value="polygamy">
-            <CheckboxIndicator>
-              <CheckboxIcon as={CheckIcon} />
-            </CheckboxIndicator>
-            <CheckboxLabel>Polygamy</CheckboxLabel>
+            <CheckboxLabel>Lets see</CheckboxLabel>
           </Checkbox>
           <Checkbox value="marriage">
             <CheckboxIndicator>

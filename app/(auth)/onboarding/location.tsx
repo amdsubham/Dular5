@@ -75,29 +75,6 @@ const Location = () => {
     }
   };
 
-  const handleSkip = async () => {
-    Alert.alert(
-      "Skip Location",
-      "Without location access, we won't be able to show you matches nearby. You can enable this later in settings. Continue without location?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Skip",
-          onPress: async () => {
-            await updateOnboardingProgress("location", {
-              latitude: null,
-              longitude: null,
-            });
-            router.push("/onboarding/done");
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <Box className="flex-1 bg-background-0 justify-between">
       {/* Progress Bar */}
@@ -132,7 +109,7 @@ const Location = () => {
       </AnimatedVStack>
 
       {/* Buttons */}
-      <Box className="px-5 pb-8 gap-3" style={{ paddingBottom: Math.max(insets.bottom + 20, 32) }}>
+      <Box className="px-5 pb-8" style={{ paddingBottom: Math.max(insets.bottom + 20, 32) }}>
         <Button
           size="lg"
           className="bg-primary-500 rounded-lg data-[active=true]:bg-primary-600"
@@ -146,18 +123,6 @@ const Location = () => {
               Allow Location Access
             </ButtonText>
           )}
-        </Button>
-
-        <Button
-          size="lg"
-          variant="outline"
-          className="rounded-lg border-background-300"
-          onPress={handleSkip}
-          disabled={loading}
-        >
-          <ButtonText className="text-typography-700 font-roboto font-medium text-base">
-            Skip for Now
-          </ButtonText>
         </Button>
       </Box>
     </Box>

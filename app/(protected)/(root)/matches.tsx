@@ -1,29 +1,413 @@
-import React, { useState, useEffect } from "react";
-import { router } from "expo-router";
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "expo-router";
+import { FilterIcon } from "@/components/shared/icons";
 import { Box } from "@/components/ui/box";
-import { Heading } from "@/components/ui/heading";
+import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
+import { SearchIcon, RepeatIcon, CloseIcon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
+import { Input, InputField, InputSlot, InputIcon } from "@/components/ui/input";
+import { ScrollView } from "@/components/ui/scroll-view";
+import { ImageBackground } from "@/components/ui/image-background";
+import { Pressable } from "@/components/ui/pressable";
+import { LocationBadge, LoveBadge } from "@/components/shared/badge";
+import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "@/components/ui/image";
-import { Button, ButtonText } from "@/components/ui/button";
-import { VStack } from "@/components/ui/vstack";
-import { HStack } from "@/components/ui/hstack";
-import { FlatList, Pressable, ActivityIndicator } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ActivityIndicator } from "react-native";
 import { getCurrentUser } from "@/services/auth";
-import { subscribeToChats, Chat } from "@/services/messaging";
-import { subscribeToUserStatus } from "@/services/presence";
-import { getLikesCount } from "@/services/likes";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import { subscribeToChats, Chat, getUsersWhoLikedMe } from "@/services/messaging";
+import { calculateDistance } from "@/services/location";
+import { EmptyState } from "@/components/shared/EmptyState";
+import Animated, {
+  FadeIn,
+  SlideInRight,
+  ZoomIn,
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 
-const MatchesScreen = () => {
-  const insets = useSafeAreaInsets();
+function AnimatedRefreshIcon({ isRefreshing }: { isRefreshing: boolean }) {
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    if (isRefreshing) {
+      rotation.value = withRepeat(
+        withTiming(360, {
+          duration: 1000,
+          easing: Easing.linear,
+        }),
+        -1, // Infinite repeat
+        false
+      );
+    } else {
+      rotation.value = withTiming(0, { duration: 200 });
+    }
+  }, [isRefreshing]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value}deg` }],
+    };
+  });
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <ButtonIcon
+        as={RepeatIcon}
+        className="w-[18px] h-[18px] text-white"
+      />
+    </Animated.View>
+  );
+}
+
+function FilterButton({
+  isSelected = false,
+  children,
+  onPress,
+}: {
+  isSelected?: boolean;
+  children: React.ReactNode;
+  onPress: () => void;
+}) {
+  return (
+    <Button
+      className={
+        "px-4 py-2 rounded-3xl " +
+        (isSelected
+          ? ""
+          : "bg-background-50 data-[active=true]:bg-background-100")
+      }
+      size="sm"
+      onPress={onPress}
+    >
+      <ButtonText className="text-white data-[active=true]:text-white">
+        {children}
+      </ButtonText>
+    </Button>
+  );
+}
+
+function FilterLayout({
+  selected,
+  setSelected,
+}: {
+  selected: string;
+  setSelected: (value: string) => void;
+}) {
+  return (
+    <AnimatedBox
+      entering={SlideInRight}
+      className="flex flex-row items-center pl-4 mb-4"
+    >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <Box className="flex flex-row items-center gap-3">
+          {["All", "Online", "Newest", "Liked You"].map((item) => (
+            <FilterButton
+              key={item}
+              isSelected={selected === item}
+              onPress={() => setSelected(item)}
+            >
+              {item}
+            </FilterButton>
+          ))}
+        </Box>
+      </ScrollView>
+    </AnimatedBox>
+  );
+}
+
+function SearchBar({
+  searchQuery,
+  setSearchQuery,
+  onClose,
+}: {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <AnimatedBox
+      entering={SlideInRight}
+      className="w-full px-4 pb-3 flex-row items-center gap-2"
+    >
+      <Box className="flex-1">
+        <Input variant="outline" size="md" className="bg-background-50">
+          <InputSlot className="pl-3">
+            <InputIcon as={SearchIcon} className="text-typography-400" />
+          </InputSlot>
+          <InputField
+            placeholder="Search matches..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            className="text-white placeholder:text-typography-400"
+          />
+          {searchQuery.length > 0 && (
+            <InputSlot className="pr-3" onPress={() => setSearchQuery('')}>
+              <InputIcon as={CloseIcon} className="text-typography-400" />
+            </InputSlot>
+          )}
+        </Input>
+      </Box>
+      <Button
+        className="p-0 h-10 w-10 rounded-full bg-background-50 data-[active=true]:bg-background-100"
+        variant="link"
+        onPress={onClose}
+      >
+        <ButtonIcon
+          as={CloseIcon}
+          className="w-[18px] h-[18px] text-white"
+        />
+      </Button>
+    </AnimatedBox>
+  );
+}
+
+function Header({
+  onSearchToggle,
+  onRefresh,
+  isRefreshing,
+}: {
+  onSearchToggle: () => void;
+  onRefresh: () => void;
+  isRefreshing: boolean;
+}) {
+  return (
+    <AnimatedBox
+      entering={FadeIn}
+      className="w-full flex flex-row items-center p-4 gap-2 justify-between"
+    >
+      <Text size="2xl" className="font-satoshi font-medium">
+        My Matches
+      </Text>
+      <Box className="flex flex-row gap-3 items-center">
+        <Button
+          className="p-0 h-10 w-10 rounded-full bg-background-50 data-[active=true]:bg-background-100"
+          variant="link"
+          onPress={onRefresh}
+          disabled={isRefreshing}
+        >
+          <AnimatedRefreshIcon isRefreshing={isRefreshing} />
+        </Button>
+        <Button
+          className="p-0 h-10 w-10 rounded-full bg-background-50 data-[active=true]:bg-background-100"
+          variant="link"
+          onPress={onSearchToggle}
+        >
+          <ButtonIcon
+            as={SearchIcon}
+            className="w-[18px] h-[18px] text-white"
+          />
+        </Button>
+      </Box>
+    </AnimatedBox>
+  );
+}
+
+function MatchCard({
+  chat,
+  index,
+}: {
+  chat: Chat;
+  index: number;
+}) {
+  const router = useRouter();
   const currentUser = getCurrentUser();
+
+  if (!currentUser) return null;
+
+  // Get the other user's data
+  const otherUserId = chat.participants.find((id) => id !== currentUser.uid);
+  if (!otherUserId) return null;
+
+  const otherUser = chat.participantsData[otherUserId];
+  if (!otherUser) return null;
+
+  const userName = `${otherUser.firstName} ${otherUser.lastName}`.trim();
+  const profileImage = otherUser.profileImage;
+  const isOnline = otherUser.isOnline || false;
+
+  // Calculate real distance if location data is available
+  let distance = 5; // Default 5km if no location data
+  if (currentUser && otherUser.location) {
+    // Get current user's location from their user document
+    // For now, we'll need to fetch it or pass it from parent
+    // Using a placeholder for now - will need to fetch current user location
+    const currentUserData = chat.participantsData[currentUser.uid];
+    if (currentUserData?.location) {
+      distance = Math.round(calculateDistance(
+        currentUserData.location.latitude,
+        currentUserData.location.longitude,
+        otherUser.location.latitude,
+        otherUser.location.longitude
+      ));
+    }
+  }
+
+  // Calculate dummy love percentage (you can replace with real data)
+  const lovePercentage = 85; // Default value
+
+  const handlePress = () => {
+    console.log('🔵 Match card pressed');
+    router.push({
+      pathname: "/(protected)/chat/[id]" as any,
+      params: {
+        id: chat.id,
+        userId: otherUserId,
+        userName,
+      },
+    });
+  };
+
+  return (
+    <Box className="w-full gap-y-2.5 rounded-t-lg overflow-hidden">
+      <Box className="rounded-lg overflow-hidden">
+        <Pressable onPress={handlePress}>
+          {profileImage ? (
+            <ImageBackground
+              source={{ uri: profileImage }}
+              className="aspect-[0.86]"
+              alt={userName}
+            >
+              <LinearGradient
+                colors={["#00000000", "#00000088"]}
+                className="flex flex-row items-end justify-center gap-x-1 p-2.5 mt-auto"
+              >
+                <LoveBadge lovePercentage={lovePercentage} />
+                <LocationBadge distance={distance} />
+              </LinearGradient>
+            </ImageBackground>
+          ) : (
+            <Box className="aspect-[0.86] bg-background-200 items-center justify-center">
+              <Text className="text-6xl font-roboto">
+                {otherUser.firstName?.charAt(0) || "?"}
+              </Text>
+              <LinearGradient
+                colors={["#00000000", "#00000088"]}
+                className="flex flex-row items-end justify-center gap-x-1 p-2.5 mt-auto absolute bottom-0 left-0 right-0"
+              >
+                <LoveBadge lovePercentage={lovePercentage} />
+                <LocationBadge distance={distance} />
+              </LinearGradient>
+            </Box>
+          )}
+        </Pressable>
+      </Box>
+      <Box className="flex flex-row items-center gap-2.5">
+        <Box
+          className={`rounded-full h-2 w-2 ${
+            isOnline ? 'bg-green-500' : 'bg-orange-300'
+          }`}
+        />
+        <Text size="sm" className="font-roboto leading-4">
+          {userName}
+        </Text>
+      </Box>
+    </Box>
+  );
+}
+
+function MatchesLayout({
+  chats,
+  filter,
+  usersWhoLikedMe,
+  searchQuery,
+}: {
+  chats: Chat[];
+  filter: string;
+  usersWhoLikedMe: string[];
+  searchQuery: string;
+}) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return null;
+
+  // Filter and sort chats based on selected filter
+  let filteredChats = [...chats];
+
+  if (filter === "Online") {
+    // Filter to show only online users
+    filteredChats = filteredChats.filter((chat) => {
+      const otherUserId = chat.participants.find((id) => id !== currentUser.uid);
+      if (!otherUserId) return false;
+
+      const otherUser = chat.participantsData[otherUserId];
+      return otherUser?.isOnline === true;
+    });
+  } else if (filter === "Newest") {
+    // Sort by creation date (newest first)
+    filteredChats.sort((a, b) => {
+      const aTime = a.createdAt?.getTime() || 0;
+      const bTime = b.createdAt?.getTime() || 0;
+      return bTime - aTime;
+    });
+  } else if (filter === "Liked You") {
+    // Filter to show only users who liked you
+    filteredChats = filteredChats.filter((chat) => {
+      const otherUserId = chat.participants.find((id) => id !== currentUser.uid);
+      if (!otherUserId) return false;
+
+      return usersWhoLikedMe.includes(otherUserId);
+    });
+  }
+  // "All" filter shows all chats sorted by last message time (default)
+
+  // Apply search filter if search query exists
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase().trim();
+    filteredChats = filteredChats.filter((chat) => {
+      const otherUserId = chat.participants.find((id) => id !== currentUser.uid);
+      if (!otherUserId) return false;
+
+      const otherUser = chat.participantsData[otherUserId];
+      if (!otherUser) return false;
+
+      const userName = `${otherUser.firstName} ${otherUser.lastName}`.toLowerCase();
+      return userName.includes(query);
+    });
+  }
+
+  if (filteredChats.length === 0) {
+    return (
+      <EmptyState
+        icon="💝"
+        title="No Matches Yet"
+        description="Start swiping right on profiles you like to make connections and see your matches here!"
+        gradientColors={["#FF6B9D", "#C239B3"]}
+      />
+    );
+  }
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Box className="flex-row gap-y-4 px-4 flex-wrap w-full justify-between">
+        {filteredChats.map((chat, index) => {
+          return (
+            <AnimatedBox
+              entering={ZoomIn.delay((index + 1) * 100)}
+              className="w-[48.5%]"
+              key={chat.id}
+            >
+              <MatchCard chat={chat} index={index} />
+            </AnimatedBox>
+          );
+        })}
+      </Box>
+    </ScrollView>
+  );
+}
+
+export default function MatchesScreen() {
+  const [selected, setSelected] = useState<string>("All");
   const [chats, setChats] = useState<Chat[]>([]);
+  const [usersWhoLikedMe, setUsersWhoLikedMe] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [onlineStatus, setOnlineStatus] = useState<{ [userId: string]: boolean }>({});
-  const [likesCount, setLikesCount] = useState<number>(0);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     // Subscribe to chats for real-time updates
@@ -32,208 +416,77 @@ const MatchesScreen = () => {
       setLoading(false);
     });
 
+    // Fetch users who liked me
+    const fetchLikedByUsers = async () => {
+      const likedByUserIds = await getUsersWhoLikedMe();
+      setUsersWhoLikedMe(likedByUserIds);
+    };
+
+    fetchLikedByUsers();
+
     return () => unsubscribe();
   }, []);
 
-  // Fetch likes count
-  useEffect(() => {
-    const fetchLikesCount = async () => {
-      const count = await getLikesCount();
-      setLikesCount(count);
-    };
-    fetchLikesCount();
-  }, []);
+  const handleRefresh = async () => {
+    console.log('🔄 Refreshing matches...');
+    setIsRefreshing(true);
 
-  // Subscribe to online status for all chat participants
-  useEffect(() => {
-    const unsubscribers: (() => void)[] = [];
+    try {
+      // Refetch users who liked me
+      const likedByUserIds = await getUsersWhoLikedMe();
+      setUsersWhoLikedMe(likedByUserIds);
 
-    chats.forEach((chat) => {
-      const otherUserId = chat.participants.find((id) => id !== currentUser?.uid);
-      if (otherUserId) {
-        const unsubscribe = subscribeToUserStatus(
-          otherUserId,
-          (isOnline) => {
-            setOnlineStatus((prev) => ({
-              ...prev,
-              [otherUserId]: isOnline,
-            }));
-          }
-        );
-        unsubscribers.push(unsubscribe);
-      }
-    });
-
-    return () => {
-      unsubscribers.forEach((unsub) => unsub());
-    };
-  }, [chats, currentUser]);
-
-  const getOtherUser = (chat: Chat) => {
-    const otherUserId = chat.participants.find((id) => id !== currentUser?.uid);
-    return otherUserId ? chat.participantsData[otherUserId] : null;
-  };
-
-  const getUnreadCount = (chat: Chat): number => {
-    if (!currentUser) return 0;
-    return chat.unreadCount[currentUser.uid] || 0;
-  };
-
-  const formatTime = (date: Date | null): string => {
-    if (!date) return "";
-
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (hours < 1) {
-      const minutes = Math.floor(diff / (1000 * 60));
-      return minutes < 1 ? "Just now" : `${minutes}m ago`;
+      console.log('✅ Matches refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error refreshing matches:', error);
+    } finally {
+      // Add a small delay so user can see the refresh animation
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 500);
     }
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-
-    return date.toLocaleDateString();
   };
 
-  const renderMatchItem = ({ item }: { item: Chat }) => {
-    const otherUser = getOtherUser(item);
-    if (!otherUser) return null;
+  const handleSearchToggle = () => {
+    setShowSearch(!showSearch);
+    if (showSearch) {
+      // Clear search when closing
+      setSearchQuery("");
+    }
+  };
 
-    const unreadCount = getUnreadCount(item);
-    const userName = `${otherUser.firstName} ${otherUser.lastName}`.trim();
-    const otherUserId = item.participants.find((id) => id !== currentUser?.uid);
-
+  if (loading) {
     return (
-      <Pressable
-        onPress={() => {
-          router.push({
-            pathname: "/(protected)/chat/[id]" as any,
-            params: {
-              id: item.id,
-              userId: otherUserId,
-              userName,
-            },
-          });
-        }}
-      >
-        <Box className="flex-row items-center px-4 py-3 border-b border-background-100 active:bg-background-50">
-          <Box className="relative mr-3">
-            <Box className="w-16 h-16 rounded-full overflow-hidden bg-background-200 items-center justify-center">
-              {otherUser.profileImage ? (
-                <Image
-                  source={{ uri: otherUser.profileImage }}
-                  className="w-full h-full"
-                  alt={userName}
-                />
-              ) : (
-                <Text className="text-2xl font-roboto font-semibold">
-                  {otherUser.firstName?.charAt(0) || "U"}
-                </Text>
-              )}
-            </Box>
-            {onlineStatus[otherUserId] && (
-              <Box className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-success-500 border-2 border-background-0" />
-            )}
-          </Box>
-
-          <VStack className="flex-1">
-            <HStack className="items-center justify-between mb-1">
-              <Heading size="sm" className="font-roboto font-semibold flex-1">
-                {userName}
-              </Heading>
-              <Text className="text-typography-400 text-xs font-roboto">
-                {formatTime(item.lastMessageAt)}
-              </Text>
-            </HStack>
-
-            <HStack className="items-center">
-              <Text
-                className={`flex-1 font-roboto text-sm ${
-                  unreadCount > 0
-                    ? "text-typography-900 font-medium"
-                    : "text-typography-500"
-                }`}
-                numberOfLines={1}
-              >
-                {item.lastMessage || "Say hi! 👋"}
-              </Text>
-              {unreadCount > 0 && (
-                <Box className="w-5 h-5 rounded-full bg-primary-500 items-center justify-center ml-2">
-                  <Text className="text-white text-xs font-roboto font-bold">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </Text>
-                </Box>
-              )}
-            </HStack>
-          </VStack>
-        </Box>
-      </Pressable>
+      <Box className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" />
+        <Text className="text-typography-500 mt-4 font-roboto">
+          Loading matches...
+        </Text>
+      </Box>
     );
-  };
+  }
 
   return (
-    <Box className="flex-1 bg-background-0">
-      {/* Header */}
-      <Box
-        className="bg-background-0 border-b border-background-100 px-4 pb-3"
-        style={{ paddingTop: insets.top + 12 }}
-      >
-        <HStack className="items-center justify-between mb-3">
-          <Heading size="2xl" className="font-satoshi font-bold">
-            Matches
-          </Heading>
-          {likesCount > 0 && (
-            <Pressable
-              onPress={() => router.push("/(protected)/who-liked-me" as any)}
-              className="bg-primary-500 rounded-full px-4 py-2 flex-row items-center gap-2"
-            >
-              <Text className="text-white font-roboto font-semibold text-sm">
-                {likesCount} {likesCount === 1 ? "Like" : "Likes"}
-              </Text>
-              <Text className="text-white text-lg">💝</Text>
-            </Pressable>
-          )}
-        </HStack>
-        {likesCount > 0 && (
-          <Text className="text-typography-500 text-sm font-roboto">
-            {likesCount} {likesCount === 1 ? "person" : "people"} liked your profile
-          </Text>
-        )}
-      </Box>
-
-      {/* Matches List */}
-      {loading ? (
-        <Box className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" />
-          <Text className="text-typography-500 mt-4 font-roboto">
-            Loading matches...
-          </Text>
-        </Box>
-      ) : chats.length === 0 ? (
-        <AnimatedBox
-          entering={FadeInDown.duration(400)}
-          className="flex-1 items-center justify-center p-8"
-        >
-          <Text className="text-6xl mb-4">💬</Text>
-          <Heading size="xl" className="text-center mb-2 font-roboto">
-            No matches yet
-          </Heading>
-          <Text className="text-typography-500 text-center font-roboto">
-            Start swiping to find matches and start conversations!
-          </Text>
-        </AnimatedBox>
-      ) : (
-        <FlatList
-          data={chats}
-          renderItem={renderMatchItem}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
+    <>
+      <Header
+        onSearchToggle={handleSearchToggle}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+      />
+      {showSearch && (
+        <SearchBar
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onClose={handleSearchToggle}
         />
       )}
-    </Box>
+      <FilterLayout selected={selected} setSelected={setSelected} />
+      <MatchesLayout
+        chats={chats}
+        filter={selected}
+        usersWhoLikedMe={usersWhoLikedMe}
+        searchQuery={searchQuery}
+      />
+    </>
   );
-};
-
-export default MatchesScreen;
+}

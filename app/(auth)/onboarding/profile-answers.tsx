@@ -69,8 +69,8 @@ const profileAnswers = () => {
   ];
 
   return (
-    <Box className="flex-1 bg-background-0 gap-4 justify-start items-center pb-[130px]">
-      <Box className="flex-1 justify-start items-start gap-11 px-5 top-11 w-[100%]">
+    <Box className="flex-1 bg-background-0">
+      <Box className="flex-1 justify-start items-start gap-11 px-5 pt-11 w-[100%] pb-[100px]">
         <Progress
           value={(9 / 9) * 100}
           className="w-1/2 mx-auto rounded-full h-1 bg-background-600"
@@ -91,7 +91,12 @@ const profileAnswers = () => {
             </VStack>
           </VStack>
           <VStack className="gap-[16px] flex-1">
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingBottom: Math.max(insets.bottom + 80, 100),
+              }}
+            >
               <Accordion className="w-full bg-transparent gap-4">
                 {prompts.map((prompt) => (
                   <AccordionItem
@@ -147,7 +152,7 @@ const profileAnswers = () => {
         onPress={() => {
           router.push("/onboarding/done");
         }}
-        style={{ marginBottom: -1 * insets.bottom }}
+        style={{ marginBottom: Math.max(insets.bottom, 20) }}
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
       >
         <FabIcon as={ChevronRightIcon} />

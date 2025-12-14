@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { Box } from "@/components/ui/box";
-import { Button, ButtonIcon } from "@/components/ui/button";
+import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { ThreeDotsIcon } from "@/components/ui/icon";
 import { HStack } from "@/components/ui/hstack";
@@ -13,10 +13,11 @@ import { LocationBadge, LoveBadge } from "@/components/shared/badge";
 import { Text } from "@/components/ui/text";
 import { HeartIcon } from "@/components/shared/icons";
 import { CloseIcon } from "@/components/ui/icon";
-import { LoveMatchBottomSheet } from "@/components/screens/home/love-match";
+import { LoveMatchBottomSheet, MatchData } from "@/components/screens/home/love-match";
+import { SwipeLimitModal } from "@/components/screens/home/swipe-limit-modal";
 import { fetchPotentialMatches, recordSwipeAction, MatchUser, MatchResult } from "@/services/matching";
+import { useSubscription } from "@/hooks/useSubscription";
 import { ActivityIndicator } from "react-native";
-import { MatchModal, MatchData } from "@/components/screens/home/match-modal";
 import Animated, {
   FadeIn,
   useAnimatedStyle,
@@ -219,7 +220,6 @@ function ChooseButtonLayout({
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
   const BUTTON_STYLES = {
     base: "h-[56px] w-[99px] rounded-lg",
     left: "bg-typography-950 data-[active=true]:bg-typography-800",
@@ -244,7 +244,6 @@ function ChooseButtonLayout({
         size="xl"
         onPress={() => {
           if (onSwipeRight) onSwipeRight();
-          setIsOpen(true);
         }}
       >
         <ButtonIcon
@@ -252,7 +251,6 @@ function ChooseButtonLayout({
           className="w-6 h-6 text-white fill-white stroke-white"
         />
       </Button>
-      <LoveMatchBottomSheet isOpen={isOpen} setIsOpen={setIsOpen} />
     </LinearGradient>
   );
 }
@@ -276,8 +274,24 @@ const SwipeScreen = ({
   const [isEndReached, setIsEndReached] = useState(false);
   const [swipeLeft, setSwipeLeft] = useState<(() => void) | undefined>();
   const [swipeRight, setSwipeRight] = useState<(() => void) | undefined>();
-  const [matchModalVisible, setMatchModalVisible] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [matchData, setMatchData] = useState<MatchData | null>(null);
+  const [isSwipeLimitModalOpen, setIsSwipeLimitModalOpen] = useState(false);
+
+  // Subscription management
+  const {
+    canSwipe,
+    swipesRemaining,
+    incrementSwipe,
+    isPremium,
+    subscription,
+    loading: subscriptionLoading,
+  } = useSubscription();
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('🔄 State changed - isOpen:', isOpen, 'matchData:', matchData ? 'exists' : 'null');
+  }, [isOpen, matchData]);
 
   // Fetch potential matches on component mount and when filters change
   useEffect(() => {
@@ -288,13 +302,14 @@ const SwipeScreen = ({
           maxDistance: filters?.maxDistance || 100,
           minAge: filters?.minAge || 18,
           maxAge: filters?.maxAge || 99,
+          interestedIn: filters?.interestedIn || [],
+          lookingFor: filters?.lookingFor || [],
         });
         setMatches(potentialMatches);
         setCurrentIndex(0);
+        setIsEndReached(false);
         if (potentialMatches.length === 0) {
           setIsEndReached(true);
-        } else {
-          setIsEndReached(false);
         }
       } catch (error) {
         console.error("Error loading matches:", error);
@@ -305,23 +320,67 @@ const SwipeScreen = ({
     };
 
     loadMatches();
-  }, [filters?.minAge, filters?.maxAge, filters?.maxDistance]);
+  }, [
+    filters?.minAge,
+    filters?.maxAge,
+    filters?.maxDistance,
+    JSON.stringify(filters?.interestedIn),
+    JSON.stringify(filters?.lookingFor),
+  ]);
 
   const handleSwipe = useCallback(
     async (action: "like" | "pass") => {
+      // Check if user has swipes remaining
+      if (!canSwipe) {
+        console.log('🚫 Swipe limit reached, showing modal');
+        setIsSwipeLimitModalOpen(true);
+        return; // Don't perform the swipe
+      }
+
       const currentUser = matches[currentIndex];
       if (currentUser) {
-        // Record the swipe action
-        const result: MatchResult = await recordSwipeAction(currentUser.uid, action);
+        try {
+          console.log(`🔄 Recording swipe ${action} for user:`, currentUser.uid);
 
-        // Check if it's a match
-        if (result.isMatch && result.matchData && result.matchId) {
-          setMatchData({
-            matchId: result.matchId,
-            matchedUser: result.matchData.matchedUser,
-            currentUser: result.matchData.currentUser,
-          });
-          setMatchModalVisible(true);
+          // Increment swipe count FIRST before recording the action
+          await incrementSwipe();
+          console.log(`✅ Swipe count incremented. Swipes remaining: ${swipesRemaining - 1}`);
+
+          // Record the swipe action
+          const result: MatchResult = await recordSwipeAction(currentUser.uid, action);
+          console.log('📋 Swipe result:', result);
+
+          // Check if it's a match
+          if (result.isMatch && result.matchData && result.matchId) {
+            console.log('💝 IT\'S A MATCH! Setting match data and opening bottom sheet');
+            console.log('Match data:', {
+              matchId: result.matchId,
+              matchedUser: result.matchData.matchedUser,
+              currentUser: result.matchData.currentUser,
+            });
+
+            const newMatchData = {
+              matchId: result.matchId,
+              matchedUser: result.matchData.matchedUser,
+              currentUser: result.matchData.currentUser,
+            };
+
+            // Set match data first
+            setMatchData(newMatchData);
+
+            // Then open bottom sheet after a small delay to ensure state is updated
+            setTimeout(() => {
+              console.log('⏰ Opening bottom sheet now');
+              setIsOpen(true);
+            }, 100);
+
+            console.log('✅ Match data set, opening bottom sheet...');
+          } else {
+            console.log('❌ No match - result.isMatch:', result.isMatch);
+          }
+        } catch (error) {
+          console.error('❌ Error during swipe:', error);
+          // Optionally show an error message to the user
         }
       }
 
@@ -333,7 +392,7 @@ const SwipeScreen = ({
         return nextIndex;
       });
     },
-    [currentIndex, matches]
+    [currentIndex, matches, canSwipe, incrementSwipe, swipesRemaining]
   );
 
   const handleSetSwipeFunctions = useCallback(
@@ -362,19 +421,23 @@ const SwipeScreen = ({
     );
   }
 
-  if (isEndReached) {
+  if (isEndReached || matches.length === 0) {
     return (
       <AnimatedBox
-        className="flex-1 justify-center items-center p-4"
+        className="flex-1 justify-center items-center p-6"
         entering={FadeInDown.duration(400)}
       >
-        <Box className="items-center gap-6">
-          <Heading size="2xl" className="text-center">
-            You've reached the end!
+        <Box className="items-center gap-6 max-w-md">
+          <Box className="w-24 h-24 rounded-full bg-background-100 items-center justify-center">
+            <Text className="text-5xl">💝</Text>
+          </Box>
+          <Heading size="2xl" className="text-center font-roboto">
+            {matches.length === 0 && !loading ? "No Profiles Yet" : "No More Profiles"}
           </Heading>
-          <Text className="text-typography-500 text-center">
-            There are no more profiles to show right now. Check back later for
-            new matches!
+          <Text className="text-typography-500 text-center text-base leading-6">
+            {matches.length === 0 && !loading
+              ? "We're finding the perfect matches for you. Check back soon or try adjusting your filters!"
+              : "There are no more profiles to show right now. Check back later for new matches!"}
           </Text>
         </Box>
       </AnimatedBox>
@@ -413,11 +476,25 @@ const SwipeScreen = ({
         />
       </AnimatedBox>
 
-      {/* Match Modal */}
-      <MatchModal
-        visible={matchModalVisible}
+      {/* Match Bottom Sheet */}
+      <LoveMatchBottomSheet
+        isOpen={isOpen}
+        setIsOpen={setIsOpen}
         matchData={matchData}
-        onClose={() => setMatchModalVisible(false)}
+      />
+
+      {/* Swipe Limit Modal */}
+      <SwipeLimitModal
+        visible={isSwipeLimitModalOpen}
+        swipesUsed={subscription?.swipesUsedToday || 0}
+        swipesLimit={subscription?.swipesLimit || 0}
+        isPremium={isPremium}
+        planName={subscription?.currentPlan ? subscription.currentPlan.charAt(0).toUpperCase() + subscription.currentPlan.slice(1) : "Free"}
+        onClose={() => setIsSwipeLimitModalOpen(false)}
+        onUpgrade={() => {
+          setIsSwipeLimitModalOpen(false);
+          // Navigation is handled inside the modal
+        }}
       />
     </>
   );

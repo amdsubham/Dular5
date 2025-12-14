@@ -10,11 +10,10 @@ export const OnboardingHeader = () => {
   const isRootRoute = pathname === "/";
   const isOtpRoute = pathname === "/otp";
   const isVerifiedRoute = pathname === "/verified";
-  const isLastPath = pathname === "/onboarding/done";
   const isOnboardingRoute = pathname.startsWith("/onboarding");
 
   const enabledBackButton = isOtpRoute || isOnboardingRoute;
-  const enabledSkipButton = isRootRoute || enabledBackButton;
+
   return (
     <HStack className="justify-between items-center w-full px-4 py-2">
       <Button
@@ -46,20 +45,14 @@ export const OnboardingHeader = () => {
         <Text className="font-satoshi font-bold">Dular</Text>
       </HStack>
 
+      {/* Skip button removed - users must complete all onboarding steps */}
       <Button
-        className={`bg-transparent data-[active=true]:bg-transparent ${
-          !isLastPath && enabledSkipButton ? "opacity-100" : "opacity-0"
-        }`}
-        onPress={() => router.push("/home")}
-        isDisabled={isLastPath || !enabledSkipButton}
+        className="bg-transparent data-[active=true]:bg-transparent opacity-0"
+        isDisabled={true}
         size="sm"
       >
-        <ButtonText
-          className={`text-typography-500 data-[active=true]:text-typography-400 font-roboto font-medium ${
-            !isLastPath && enabledSkipButton ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          Skip
+        <ButtonText className="text-typography-500 opacity-0">
+          {/* Placeholder for layout balance */}
         </ButtonText>
       </Button>
     </HStack>

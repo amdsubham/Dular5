@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollView } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
 import { Progress } from "@/components/ui/progress";
 import { Box } from "@/components/ui/box";
@@ -165,100 +166,109 @@ const pictures = () => {
   };
 
   return (
-    <Box className="flex-1 bg-background-0 gap-4 justify-start items-center pb-[100px]">
-      <Box className="flex-1 justify-start items-start gap-11 px-5 top-11 w-[100%]">
-        <Progress
-          value={(6 / 7) * 100}
-          className="w-1/2 mx-auto rounded-full h-1 bg-background-600"
-        >
-          <ProgressFilledTrack />
-        </Progress>
+    <Box className="flex-1 bg-background-0">
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: Math.max(insets.bottom + 80, 100),
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Box className="flex-1 justify-start items-start gap-11 px-5 pt-11 w-[100%]">
+          <Progress
+            value={(6 / 7) * 100}
+            className="w-1/2 mx-auto rounded-full h-1 bg-background-600"
+          >
+            <ProgressFilledTrack />
+          </Progress>
 
-        <VStack className="gap-6 w-full">
-          <VStack className="gap-3">
-            <Heading className="font-roboto font-semibold text-2xl">
-              Add your pictures
-            </Heading>
-            <Text className="font-normal font-roboto text-typography-400">
-              Choose photos where your face is clearly visible, also try to
-              avoid blurred and poor quality images for your profile!
-            </Text>
-          </VStack>
-          <Box className="flex-wrap justify-between gap-y-2.5 flex-row">
-            {getImageSlots().map((image, index) => (
-              <Box className="w-[31%] aspect-square relative" key={index}>
-                {image ? (
-                  <>
-                    <Image
-                      source={{ uri: image }}
-                      className="w-full h-full object-cover rounded-lg"
-                      alt={`Profile image ${index + 1}`}
-                    />
-                    <Pressable
-                      onPress={() => removeImage(index)}
-                      className="absolute -top-3 right-2.5 bg-background-950 p-1 rounded-full z-10"
-                    >
-                      <Icon
-                        as={RemoveIcon}
-                        className="text-typography-50 h-3 w-3"
-                      />
-                    </Pressable>
-                    {index === 0 ? (
-                      <Box className="absolute bottom-2 left-2 bg-secondary-500/70 py-1 px-2 rounded-full">
-                        <Text className="text-secondary-800 text-2xs">
-                          Main
-                        </Text>
-                      </Box>
-                    ) : (
-                      <Box className="absolute bottom-2 left-2 bg-background-50 h-5 w-5 items-center justify-center rounded-full">
-                        <Text className="text-typography-500 text-2xs">
-                          {index + 1}
-                        </Text>
-                      </Box>
-                    )}
-                  </>
-                ) : (
-                  <Pressable
-                    onPress={() => pickImage(index)}
-                    className="w-full h-full rounded-lg items-center justify-center border border-background-100"
-                  >
-                    <Icon as={AddIcon} size="lg" />
-                  </Pressable>
-                )}
-              </Box>
-            ))}
-          </Box>
-          <InfoOnboarding info="Hold and drag photo to reorder" />
-          
-          {/* Upload Progress Bar */}
-          {uploading && (
-            <VStack className="gap-2 w-full mt-4">
-              <HStack className="justify-between items-center">
-                <Text className="font-roboto text-typography-500 text-sm">
-                  Uploading images...
-                </Text>
-                <Text className="font-roboto text-typography-500 text-sm">
-                  {currentUploadingImage} / {totalUploadingImages}
-                </Text>
-              </HStack>
-              <Progress
-                value={uploadProgress}
-                className="w-full rounded-full h-2 bg-background-600"
-              >
-                <ProgressFilledTrack />
-              </Progress>
-              <Text className="font-roboto text-typography-400 text-xs text-center">
-                {uploadProgress.toFixed(0)}% complete
+          <VStack className="gap-6 w-full">
+            <VStack className="gap-3">
+              <Heading className="font-roboto font-semibold text-2xl">
+                Add your pictures
+              </Heading>
+              <Text className="font-normal font-roboto text-typography-400">
+                Choose photos where your face is clearly visible, also try to
+                avoid blurred and poor quality images for your profile!
               </Text>
             </VStack>
-          )}
-        </VStack>
-      </Box>
+            <Box className="flex-wrap justify-between gap-y-2.5 flex-row">
+              {getImageSlots().map((image, index) => (
+                <Box className="w-[31%] aspect-square relative" key={index}>
+                  {image ? (
+                    <>
+                      <Image
+                        source={{ uri: image }}
+                        className="w-full h-full object-cover rounded-lg"
+                        alt={`Profile image ${index + 1}`}
+                      />
+                      <Pressable
+                        onPress={() => removeImage(index)}
+                        className="absolute -top-3 right-2.5 bg-background-950 p-1 rounded-full z-10"
+                      >
+                        <Icon
+                          as={RemoveIcon}
+                          className="text-typography-50 h-3 w-3"
+                        />
+                      </Pressable>
+                      {index === 0 ? (
+                        <Box className="absolute bottom-2 left-2 bg-secondary-500/70 py-1 px-2 rounded-full">
+                          <Text className="text-secondary-800 text-2xs">
+                            Main
+                          </Text>
+                        </Box>
+                      ) : (
+                        <Box className="absolute bottom-2 left-2 bg-background-50 h-5 w-5 items-center justify-center rounded-full">
+                          <Text className="text-typography-500 text-2xs">
+                            {index + 1}
+                          </Text>
+                        </Box>
+                      )}
+                    </>
+                  ) : (
+                    <Pressable
+                      onPress={() => pickImage(index)}
+                      className="w-full h-full rounded-lg items-center justify-center border border-background-100"
+                    >
+                      <Icon as={AddIcon} size="lg" />
+                    </Pressable>
+                  )}
+                </Box>
+              ))}
+            </Box>
+            <InfoOnboarding info="Hold and drag photo to reorder" />
+
+            {/* Upload Progress Bar */}
+            {uploading && (
+              <VStack className="gap-2 w-full mt-4">
+                <HStack className="justify-between items-center">
+                  <Text className="font-roboto text-typography-500 text-sm">
+                    Uploading images...
+                  </Text>
+                  <Text className="font-roboto text-typography-500 text-sm">
+                    {currentUploadingImage} / {totalUploadingImages}
+                  </Text>
+                </HStack>
+                <Progress
+                  value={uploadProgress}
+                  className="w-full rounded-full h-2 bg-background-600"
+                >
+                  <ProgressFilledTrack />
+                </Progress>
+                <Text className="font-roboto text-typography-400 text-xs text-center">
+                  {uploadProgress.toFixed(0)}% complete
+                </Text>
+              </VStack>
+            )}
+          </VStack>
+        </Box>
+      </ScrollView>
       <Fab
         size="lg"
         onPress={handleNext}
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
-        style={{ marginBottom: -1 * insets.bottom }}
+        style={{ marginBottom: Math.max(insets.bottom, 20) }}
         isDisabled={!hasAtLeastOneImage || uploading}
       >
         {uploading ? (

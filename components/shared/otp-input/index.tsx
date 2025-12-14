@@ -2,11 +2,14 @@ import React, { useState } from "react";
 import { StyleSheet } from "react-native";
 import { OtpInput } from "react-native-otp-entry";
 import { Box } from "@/components/ui/box";
+
 interface OTPComponentProps {
   onComplete: (otp: string) => void;
 }
+
 export const OTPComponent = ({ onComplete }: OTPComponentProps) => {
   const [otpValue, setOtpValue] = useState("");
+
   return (
     <Box>
       <OtpInput

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dular",
     "slug": "dular",
-    "version": "1.0.0",
+    "version": "12.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo_big.png",
     "splash": {
@@ -27,7 +27,6 @@
             "./assets/fonts/Satoshi-Variable.ttf",
             "./assets/fonts/Satoshi-VariableItalic.ttf",
             "./assets/fonts/SpaceMono-Regular.ttf",
-            "./assets/fonts/SpaceMono-Italic.ttf",
             "./assets/fonts/Roboto/Roboto-Black.ttf",
             "./assets/fonts/Roboto/Roboto-BlackItalic.ttf",
             "./assets/fonts/Roboto/Roboto-Bold.ttf",
@@ -53,20 +52,27 @@
         "expo-notifications",
         {
           "icon": "./assets/images/logo_big.png",
-          "color": "#EC4899",
-          "sounds": [
-            "./assets/sounds/notification.wav"
-          ]
+          "color": "#EC4899"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": false,
+            "enableMinifyInReleaseBuilds": false
+          }
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "The app needs access to your photos to add pictures to your profile.",
         "NSCameraUsageDescription": "The app needs access to your camera to take photos for your profile."
-      }
+      },
+      "bundleIdentifier": "com.santali.dating"
     },
     "android": {
       "adaptiveIcon": {
@@ -79,18 +85,19 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.CAMERA",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.CAMERA",
-        "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECORD_AUDIO"
       ],
       "googleServicesFile": "./google-services.json",
-      "package": "com.amdsubham.dular"
+      "package": "com.santali.dating"
     },
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0ed3addc-68dc-40e6-946e-4643353b2227"
+      }
     }
   }
 }

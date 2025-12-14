@@ -25,6 +25,10 @@ export default function UsersPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage, setUsersPerPage] = useState(12);
+
   // Apply URL filter on mount
   useEffect(() => {
     const urlFilter = searchParams.get('filter');
@@ -41,6 +45,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     applyFilters();
+    setCurrentPage(1); // Reset to first page when filters change
   }, [searchTerm, filters, users]);
 
   const loadUsers = async () => {
@@ -166,6 +171,35 @@ export default function UsersPage() {
     return `${firstName} ${lastName}`.trim() || 'N/A';
   };
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+
+  const paginate = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxPagesToShow = 5;
+
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage + 1 < maxPagesToShow) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+
+    return pageNumbers;
+  };
+
   if (loading) {
     return <div className="text-center py-8">Loading users...</div>;
   }
@@ -194,6 +228,43 @@ export default function UsersPage() {
         </div>
       </div>
 
+      {/* Stats Bar */}
+      <div className="bg-white rounded-xl shadow-md p-4 mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <div>
+            <span className="text-sm text-gray-600">Total Users: </span>
+            <span className="text-lg font-bold text-gray-900">{users.length}</span>
+          </div>
+          <div>
+            <span className="text-sm text-gray-600">Filtered: </span>
+            <span className="text-lg font-bold text-primary-600">{filteredUsers.length}</span>
+          </div>
+          <div>
+            <span className="text-sm text-gray-600">Showing: </span>
+            <span className="text-lg font-bold text-gray-900">
+              {indexOfFirstUser + 1}-{Math.min(indexOfLastUser, filteredUsers.length)}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600">Users per page:</span>
+          <select
+            value={usersPerPage}
+            onChange={(e) => {
+              setUsersPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+          >
+            <option value="6">6</option>
+            <option value="12">12</option>
+            <option value="24">24</option>
+            <option value="48">48</option>
+            <option value="96">96</option>
+          </select>
+        </div>
+      </div>
+
       {/* Search and Filters */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -216,9 +287,9 @@ export default function UsersPage() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
           >
             <option value="">All Genders</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
           </select>
 
           <select
@@ -286,7 +357,7 @@ export default function UsersPage() {
 
       {/* Users Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredUsers.map((user) => {
+        {currentUsers.map((user) => {
           const pictures = getPictures(user);
           const interests = getInterests(user);
           const interestedIn = getInterestedIn(user);
@@ -417,6 +488,68 @@ export default function UsersPage() {
           );
         })}
       </div>
+
+      {/* Pagination Controls */}
+      {filteredUsers.length > 0 && totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-center gap-2">
+          {/* First Page */}
+          <button
+            onClick={() => paginate(1)}
+            disabled={currentPage === 1}
+            className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="First page"
+          >
+            «
+          </button>
+
+          {/* Previous Page */}
+          <button
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Previous
+          </button>
+
+          {/* Page Numbers */}
+          <div className="flex gap-2">
+            {getPageNumbers().map((number) => (
+              <button
+                key={number}
+                onClick={() => paginate(number)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  currentPage === number
+                    ? 'bg-primary-600 text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {number}
+              </button>
+            ))}
+          </div>
+
+          {/* Next Page */}
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
+          {/* Last Page */}
+          <button
+            onClick={() => paginate(totalPages)}
+            disabled={currentPage === totalPages}
+            className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Last page"
+          >
+            »
+          </button>
+        </div>
+      )}
 
       {filteredUsers.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl shadow-md">
@@ -645,7 +778,6 @@ function UserModal({
         interestedIn: [] as string[],
         lookingFor: [] as string[],
         interests: [] as string[],
-        height: '',
       };
     }
 
@@ -659,7 +791,6 @@ function UserModal({
       interestedIn: user.onboarding?.data?.interestedIn || user.interestedIn || [],
       lookingFor: user.onboarding?.data?.lookingFor || user.lookingFor || [],
       interests: user.onboarding?.data?.interests || user.interests || [],
-      height: user.onboarding?.data?.height || '',
     };
   };
 
@@ -735,7 +866,6 @@ function UserModal({
           'onboarding.data.interests': formData.interests,
           'onboarding.data.interestedIn': formData.interestedIn,
           'onboarding.data.lookingFor': formData.lookingFor,
-          'onboarding.data.height': formData.height,
         } as any);
         alert('User updated successfully');
       } else {
@@ -836,7 +966,7 @@ function UserModal({
           {/* Personal Details */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Details</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Gender
@@ -847,9 +977,9 @@ function UserModal({
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                 >
                   <option value="">Select gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
 
@@ -862,19 +992,6 @@ function UserModal({
                   value={formData.dob || ''}
                   onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Height
-                </label>
-                <input
-                  type="text"
-                  value={formData.height || ''}
-                  onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="e.g., 181 cm"
                 />
               </div>
             </div>

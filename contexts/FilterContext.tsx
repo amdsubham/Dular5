@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { getUserPreferences } from '@/services/matching';
 
 export interface FilterState {
   minAge: number;
@@ -17,7 +18,7 @@ interface FilterContextType {
 const defaultFilters: FilterState = {
   minAge: 18,
   maxAge: 99,
-  maxDistance: 100, // km
+  maxDistance: 500, // km - maximum distance by default
   lookingFor: [],
   interestedIn: [],
 };
@@ -26,6 +27,29 @@ const FilterContext = createContext<FilterContextType | undefined>(undefined);
 
 export const FilterProvider = ({ children }: { children: ReactNode }) => {
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [initialized, setInitialized] = useState(false);
+
+  // Load user's onboarding preferences on mount
+  useEffect(() => {
+    const loadUserPreferences = async () => {
+      try {
+        const userPrefs = await getUserPreferences();
+        if (userPrefs && !initialized) {
+          setFilters((prev) => ({
+            ...prev,
+            interestedIn: userPrefs.interestedIn || [],
+            lookingFor: userPrefs.lookingFor || [],
+          }));
+          setInitialized(true);
+        }
+      } catch (error) {
+        console.error('Error loading user preferences for filters:', error);
+        setInitialized(true);
+      }
+    };
+
+    loadUserPreferences();
+  }, [initialized]);
 
   const updateFilters = (newFilters: Partial<FilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));

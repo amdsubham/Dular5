@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Users, Bell, LogOut, Home, UserPlus } from 'lucide-react';
+import { Users, Bell, LogOut, Home, CreditCard, Package, Settings, Upload } from 'lucide-react';
 import { signOutAdmin } from '@/services/auth';
 
 export default function Sidebar() {
@@ -20,6 +20,13 @@ export default function Sidebar() {
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
     { href: '/dashboard/users', icon: Users, label: 'Users' },
     { href: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
+    { href: '/dashboard/migrate-users', icon: Upload, label: 'Migrate Users' },
+  ];
+
+  const subscriptionItems = [
+    { href: '/dashboard/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+    { href: '/dashboard/subscriptions/plans', icon: Package, label: 'Plans' },
+    { href: '/dashboard/subscriptions/settings', icon: Settings, label: 'Settings' },
   ];
 
   return (
@@ -32,6 +39,30 @@ export default function Sidebar() {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
+                isActive
+                  ? 'bg-primary-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-800'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+
+        {/* Subscription Section */}
+        <div className="mt-6 mb-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Premium & Revenue
+        </div>
+        {subscriptionItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
 
           return (
             <Link
