@@ -1,17 +1,16 @@
 import {
-  PhoneAuthProvider,
-  signInWithCredential,
-  RecaptchaVerifier,
-  ApplicationVerifier,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
 } from 'firebase/auth';
-import { auth } from '@/config/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerForPushNotifications, savePushTokenToFirestore } from './notifications';
 import { analytics } from './analytics';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 
 const PHONE_NUMBER_KEY = '@dular:phone_number';
-const VERIFICATION_ID_KEY = '@dular:verification_id';
+const OTP_KEY = '@dular:otp';
 
 export interface PhoneAuthResult {
   success: boolean;
@@ -20,134 +19,77 @@ export interface PhoneAuthResult {
 }
 
 /**
- * Send OTP to phone number
- * Uses Firebase App Check for automatic verification (no reCAPTCHA needed)
+ * Send OTP via external API
+ * Uses custom OTP service instead of Firebase phone auth
  */
-// Firebase test phone numbers (for development without billing)
-// Add your test numbers in Firebase Console: Authentication > Sign-in method > Phone > Phone numbers for testing
-const TEST_PHONE_NUMBERS = [
-  '+917008105210', // Add your test numbers here
-];
-
 export const sendOTP = async (
   phoneNumber: string,
-  recaptchaVerifier?: ApplicationVerifier | null
+  recaptchaVerifier?: any // Not used, kept for compatibility
 ): Promise<PhoneAuthResult> => {
   try {
-    // Format phone number (ensure it starts with +)
-    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+    // Format phone number (remove + if present)
+    const formattedPhone = phoneNumber.replace(/\+/g, '').replace(/^91/, '');
 
-    console.log('Sending OTP to:', formattedPhone);
-
-    if (!recaptchaVerifier) {
-      console.warn('⚠️ No reCAPTCHA verifier provided. This may fail on production.');
-      console.warn('💡 Make sure to pass recaptchaVerifier from FirebaseRecaptchaVerifierModal');
-    } else {
-      console.log('✅ Using expo-firebase-recaptcha verifier');
-    }
+    console.log('📱 Sending OTP to:', formattedPhone);
 
     // Store phone number
     await AsyncStorage.setItem(PHONE_NUMBER_KEY, formattedPhone);
 
-    const phoneProvider = new PhoneAuthProvider(auth);
+    // Generate OTP (6 digits)
+    // Special OTP for test number
+    const otp = formattedPhone === '7008105210'
+      ? '121212'
+      : Math.floor(100000 + Math.random() * 900000).toString();
 
-    console.log('Calling verifyPhoneNumber...');
+    // Store OTP temporarily for verification
+    await AsyncStorage.setItem(OTP_KEY, otp);
 
-    // Add timeout wrapper - allows time for reCAPTCHA to complete
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('OTP request timed out. Please check your internet connection and try again.'));
-      }, 60000); // 60 second timeout - enough time for user to complete reCAPTCHA
+    console.log('🔐 Generated OTP:', otp); // For testing - remove in production
+
+    // Call external OTP API
+    const response = await fetch('https://odicult.fruitnasta.com/api/user/sendotp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phoneNumber: formattedPhone,
+        assignedOtp: otp,
+      }),
     });
 
-    // Use the provided recaptcha verifier (from expo-firebase-recaptcha)
-    // This works on React Native and shows the reCAPTCHA modal when needed
-    const verificationId = await Promise.race([
-      phoneProvider.verifyPhoneNumber(formattedPhone, recaptchaVerifier!),
-      timeoutPromise
-    ]) as string;
+    const data = await response.json();
 
-    console.log('Verification ID received:', verificationId);
+    console.log('📊 OTP API Response:', data);
 
-    // Store verification ID
-    await AsyncStorage.setItem(VERIFICATION_ID_KEY, verificationId);
+    if (data.status === 'OK') {
+      console.log('✅ OTP sent successfully via API');
 
-    console.log('OTP sent successfully. Verification ID:', verificationId);
+      // Track OTP sent event
+      await analytics.track('otp_sent', {
+        phoneNumber: formattedPhone,
+        method: 'api',
+      });
 
-    // Track OTP sent event
-    await analytics.track('otp_sent', {
-      phoneNumber: formattedPhone,
-      method: 'phone',
-    });
-
-    return {
-      success: true,
-      verificationId,
-    };
+      return {
+        success: true,
+        verificationId: data.msgid || 'api-verification',
+      };
+    } else {
+      console.error('❌ OTP API failed:', data);
+      return {
+        success: false,
+        error: data.message || 'Failed to send OTP. Please try again.',
+      };
+    }
   } catch (error: any) {
-    console.error('Error sending OTP:', error);
+    console.error('❌ Error sending OTP:', error);
 
     // Track OTP error
     await analytics.trackError(error, {
       action: 'send_otp',
       phoneNumber: phoneNumber,
     });
-    console.error('Error code:', error.code);
-    console.error('Error message:', error.message);
-    
-    // Handle timeout
-    if (error.message && error.message.includes('timed out')) {
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-    
-    // Handle billing error specifically
-    if (error.code === 'auth/billing-not-enabled') {
-      return {
-        success: false,
-        error: 'Firebase billing is not enabled. For development, please:\n1. Enable billing in Firebase Console, OR\n2. Add test phone numbers in Firebase Console > Authentication > Sign-in method > Phone > Phone numbers for testing',
-      };
-    }
-    
-    // Handle reCAPTCHA errors
-    if (error.code === 'auth/internal-error' || error.code === 'auth/network-request-failed') {
-      return {
-        success: false,
-        error: 'Network error or reCAPTCHA verification failed. Please check your internet connection and try again.',
-      };
-    }
-    
-    // Handle argument error (missing verifier)
-    if (error.code === 'auth/argument-error') {
-      return {
-        success: false,
-        error: 'Phone authentication setup incomplete.\n\nFor testing:\n1. Open Firebase Console\n2. Go to Authentication > Sign-in method > Phone\n3. Add test phone number: ' + phoneNumber + '\n4. Use code: 123456\n\nFor production: Enable Firebase Blaze plan.',
-      };
-    }
-
-    // Handle other common errors
-    if (error.code === 'auth/invalid-phone-number') {
-      return {
-        success: false,
-        error: 'Invalid phone number format. Please enter a valid phone number with country code (e.g., +917008105210).',
-      };
-    }
-
-    if (error.code === 'auth/too-many-requests') {
-      return {
-        success: false,
-        error: 'Too many requests. Please wait a few minutes and try again.',
-      };
-    }
-
-    if (error.code === 'auth/quota-exceeded') {
-      return {
-        success: false,
-        error: 'Firebase quota exceeded. Please enable Firebase Blaze (Pay as you go) plan in Firebase Console.',
-      };
-    }
 
     return {
       success: false,
@@ -157,74 +99,206 @@ export const sendOTP = async (
 };
 
 /**
- * Verify OTP code
+ * Verify OTP and create/login Firebase user
+ * Timeout wrapper to prevent infinite loader
  */
-export const verifyOTP = async (code: string): Promise<{ success: boolean; error?: string; user?: any }> => {
+const verifyOTPInternal = async (code: string): Promise<{ success: boolean; error?: string; user?: any }> => {
   try {
-    const verificationId = await AsyncStorage.getItem(VERIFICATION_ID_KEY);
-    
-    if (!verificationId) {
+    // Get stored OTP and phone number
+    const storedOtp = await AsyncStorage.getItem(OTP_KEY);
+    const phoneNumber = await AsyncStorage.getItem(PHONE_NUMBER_KEY);
+
+    if (!storedOtp || !phoneNumber) {
       return {
         success: false,
-        error: 'Verification ID not found. Please request a new code.',
+        error: 'Verification session expired. Please request a new code.',
       };
     }
 
-    // Create credential
-    const credential = PhoneAuthProvider.credential(verificationId, code);
+    console.log('🔐 Verifying OTP...');
+    console.log('Entered:', code, 'Stored:', storedOtp);
 
-    // Sign in with credential
-    const userCredential = await signInWithCredential(auth, credential);
-
-    // Clear stored verification ID
-    await AsyncStorage.removeItem(VERIFICATION_ID_KEY);
-
-    // Check if user is new or returning
-    const isNewUser = userCredential.user.metadata.creationTime === userCredential.user.metadata.lastSignInTime;
-
-    // Track login/signup event
-    if (isNewUser) {
-      await analytics.trackSignup('phone', userCredential.user.uid, {
-        phoneNumber: userCredential.user.phoneNumber,
-      });
-    } else {
-      await analytics.trackLogin('phone', userCredential.user.uid, {
-        phoneNumber: userCredential.user.phoneNumber,
-      });
+    // Verify OTP matches
+    if (code !== storedOtp) {
+      return {
+        success: false,
+        error: 'Invalid verification code. Please try again.',
+      };
     }
 
-    // Register for push notifications after successful login
-    console.log('🔔 Registering for push notifications...');
+    console.log('✅ OTP verified successfully');
+
+    // Create Firebase email/password credentials
+    const email = `${phoneNumber}@gmail.com`;
+    const password = phoneNumber;
+
+    console.log('🔑 Firebase credentials:', { email, password: '***' });
+
+    let userCredential;
+    let isNewUser = false;
+
     try {
-      const pushToken = await registerForPushNotifications();
-      if (pushToken) {
-        console.log('📱 Push token obtained:', pushToken);
-        await savePushTokenToFirestore(pushToken);
-        console.log('✅ Push token saved to Firestore');
+      // Try to sign in first
+      console.log('🔐 Attempting to sign in existing user...');
+      userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('✅ Signed in existing user');
+    } catch (signInError: any) {
+      console.log('ℹ️ Sign in failed, creating new user:', signInError.code);
+
+      if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
+        // User doesn't exist, create new account
+        console.log('👤 Creating new user account...');
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        isNewUser = true;
+        console.log('✅ New user created');
+
+        // Update profile with phone number
+        await updateProfile(userCredential.user, {
+          displayName: phoneNumber,
+        });
+        console.log('✅ Profile updated with phone number');
       } else {
-        console.warn('⚠️ Could not get push token - notifications may not work');
+        throw signInError;
       }
-    } catch (notifError) {
-      console.error('❌ Error setting up push notifications:', notifError);
-      // Don't fail login if notifications fail
     }
 
+    // Store user data in Firestore with timeout
+    try {
+      const userDoc = doc(db, 'users', userCredential.user.uid);
+
+      // Set a shorter timeout for Firestore operations
+      const firestoreTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore timeout')), 10000)
+      );
+
+      const userSnapshot = await Promise.race([
+        getDoc(userDoc),
+        firestoreTimeout
+      ]);
+
+      if (!userSnapshot.exists() || isNewUser) {
+        console.log('💾 Storing user data in Firestore...');
+        await Promise.race([
+          setDoc(userDoc, {
+            phoneNumber: `+91${phoneNumber}`,
+            email: email,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }, { merge: true }),
+          firestoreTimeout
+        ]);
+        console.log('✅ User data stored in Firestore');
+      }
+    } catch (firestoreError) {
+      console.warn('⚠️ Firestore operation failed, but login succeeded:', firestoreError);
+      // Continue anyway - user is authenticated even if Firestore write fails
+    }
+
+    // Clear stored OTP
+    await AsyncStorage.removeItem(OTP_KEY);
+
+    console.log('📊 User status:', isNewUser ? 'New user' : 'Returning user');
+
+    // Run analytics and push notifications in background (non-blocking)
+    // This prevents infinite loader in production
+    Promise.all([
+      // Track login/signup event (non-blocking)
+      (async () => {
+        try {
+          if (isNewUser) {
+            await analytics.trackSignup('phone', userCredential.user.uid, {
+              phoneNumber: `+91${phoneNumber}`,
+            });
+          } else {
+            await analytics.trackLogin('phone', userCredential.user.uid, {
+              phoneNumber: `+91${phoneNumber}`,
+            });
+          }
+        } catch (error) {
+          console.warn('⚠️ Analytics tracking failed:', error);
+        }
+      })(),
+
+      // Register for push notifications (non-blocking)
+      (async () => {
+        try {
+          console.log('🔔 Registering for push notifications...');
+          const pushToken = await registerForPushNotifications();
+          if (pushToken) {
+            console.log('📱 Push token obtained:', pushToken);
+            await savePushTokenToFirestore(pushToken);
+            console.log('✅ Push token saved to Firestore');
+          } else {
+            console.warn('⚠️ Could not get push token - notifications may not work');
+          }
+        } catch (notifError) {
+          console.warn('⚠️ Push notifications setup failed:', notifError);
+        }
+      })()
+    ]).catch(err => {
+      console.warn('⚠️ Background tasks failed:', err);
+    });
+
+    // Return immediately without waiting for background tasks
     return {
       success: true,
       user: userCredential.user,
     };
   } catch (error: any) {
-    console.error('Error verifying OTP:', error);
+    console.error('❌ Error verifying OTP:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
 
     // Track OTP verification error
     await analytics.trackError(error, {
       action: 'verify_otp',
     });
+
+    // Handle specific Firebase errors
+    if (error.code === 'auth/email-already-in-use') {
+      return {
+        success: false,
+        error: 'This phone number is already registered. Please try signing in.',
+      };
+    }
+
+    if (error.code === 'auth/weak-password') {
+      return {
+        success: false,
+        error: 'Authentication error. Please try again.',
+      };
+    }
+
+    if (error.code === 'auth/network-request-failed') {
+      return {
+        success: false,
+        error: 'Network error. Please check your internet connection and try again.',
+      };
+    }
+
     return {
       success: false,
-      error: error.message || 'Invalid verification code. Please try again.',
+      error: error.message || 'Verification failed. Please try again.',
     };
   }
+};
+
+/**
+ * Verify OTP with timeout to prevent infinite loader
+ */
+export const verifyOTP = async (code: string): Promise<{ success: boolean; error?: string; user?: any }> => {
+  return Promise.race([
+    verifyOTPInternal(code),
+    new Promise<{ success: boolean; error: string }>((resolve) =>
+      setTimeout(() => {
+        console.error('⏰ OTP verification timeout after 30 seconds');
+        resolve({
+          success: false,
+          error: 'Verification is taking too long. Please check your internet connection and try again.',
+        });
+      }, 30000) // 30 second timeout
+    ),
+  ]);
 };
 
 /**
@@ -248,14 +322,16 @@ export const signOut = async (): Promise<void> => {
 
     await auth.signOut();
     await AsyncStorage.removeItem(PHONE_NUMBER_KEY);
-    await AsyncStorage.removeItem(VERIFICATION_ID_KEY);
+    await AsyncStorage.removeItem(OTP_KEY);
 
     // Track logout event
     if (userId) {
       await analytics.trackLogout(userId);
     }
+
+    console.log('✅ User signed out successfully');
   } catch (error) {
-    console.error('Error signing out:', error);
+    console.error('❌ Error signing out:', error);
     throw error;
   }
 };
@@ -267,3 +343,42 @@ export const getCurrentUser = () => {
   return auth.currentUser;
 };
 
+/**
+ * Get authentication state listener
+ */
+export const onAuthStateChanged = (callback: (user: any) => void) => {
+  return auth.onAuthStateChanged(callback);
+};
+
+/**
+ * Auto-login user if they have a stored phone number
+ */
+export const autoLogin = async (): Promise<{ success: boolean; user?: any; error?: string }> => {
+  try {
+    const phoneNumber = await AsyncStorage.getItem(PHONE_NUMBER_KEY);
+
+    if (!phoneNumber) {
+      return { success: false, error: 'No stored credentials' };
+    }
+
+    const email = `${phoneNumber}@gmail.com`;
+    const password = phoneNumber;
+
+    console.log('🔄 Attempting auto-login...');
+
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+    console.log('✅ Auto-login successful');
+
+    return {
+      success: true,
+      user: userCredential.user,
+    };
+  } catch (error: any) {
+    console.log('ℹ️ Auto-login failed:', error.code);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};

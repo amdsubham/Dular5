@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { router } from "expo-router";
-import { ScrollView } from "react-native";
+import { ScrollView, KeyboardAvoidingView, Platform, Keyboard } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
 import {
   FormControl,
@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const intro = () => {
   const [textValue, setTextValue] = useState("");
   const [wordCount, setWordCount] = useState(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -27,9 +28,30 @@ const intro = () => {
     }
   }, [textValue]);
 
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
+
   return (
-    <Box className="flex-1 bg-background-0">
-      <ScrollView
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-background-0"
+      keyboardVerticalOffset={0}
+    >
+      <Box className="flex-1 bg-background-0">
+        <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
           paddingBottom: Math.max(insets.bottom + 80, 100),
@@ -76,11 +98,16 @@ const intro = () => {
           router.push("/onboarding/pictures");
         }}
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
-        style={{ marginBottom: Math.max(insets.bottom, 20) }}
+        style={{
+          marginBottom: keyboardHeight > 0
+            ? keyboardHeight + 10
+            : Math.max(insets.bottom, 20)
+        }}
       >
         <FabIcon as={ChevronRightIcon} />
       </Fab>
     </Box>
+    </KeyboardAvoidingView>
   );
 };
 export default intro;

@@ -29,6 +29,7 @@ export enum PaymentStatus {
  */
 export enum PaymentProvider {
   CCAVENUE = "ccavenue",
+  INSTAMOJO = "instamojo",
 }
 
 // ============================================================================
@@ -63,13 +64,22 @@ export interface SubscriptionConfig {
   // Free trial settings
   freeTrialSwipeLimit: number; // Number of swipes allowed in free trial (e.g., 5)
 
-  // CCAvenue settings
-  ccavenueAccessCode: string; // CCAvenue Access Code
-  ccavenueMerchantId: string; // CCAvenue Merchant ID
-  ccavenueWorkingKey: string; // CCAvenue Working Key (stored securely, not exposed to client)
+  // CCAvenue settings (deprecated - use Instamojo instead)
+  ccavenueAccessCode?: string; // CCAvenue Access Code
+  ccavenueMerchantId?: string; // CCAvenue Merchant ID
+  ccavenueWorkingKey?: string; // CCAvenue Working Key (stored securely, not exposed to client)
+
+  // Instamojo settings
+  instamojoApiKey?: string; // Instamojo API Key
+  instamojoAuthToken?: string; // Instamojo Auth Token
+  instamojoPrivateSalt?: string; // Instamojo Private Salt for webhook verification
+  instamojoSmartLinks?: {
+    [key in PlanType]?: string; // Smart link URLs for each plan
+  };
 
   // Feature flags
   subscriptionEnabled: boolean; // Master toggle for subscription feature
+  paymentProvider: PaymentProvider; // Active payment provider
 
   // Timestamps
   updatedAt: Date;
@@ -143,10 +153,12 @@ export interface Transaction {
   currency: string; // "INR"
   provider: PaymentProvider;
 
-  // CCAvenue specific
-  ccavenueOrderId: string | null;
-  ccavenueTrackingId: string | null;
-  ccavenuePaymentMode: string | null;
+  // Gateway specific fields
+  ccavenueOrderId?: string | null; // CCAvenue Order ID (deprecated)
+  ccavenueTrackingId?: string | null; // CCAvenue Tracking ID (deprecated)
+  ccavenuePaymentMode?: string | null; // CCAvenue Payment Mode (deprecated)
+  instamojoPaymentId?: string | null; // Instamojo Payment ID
+  instamojoPaymentRequestId?: string | null; // Instamojo Payment Request ID
 
   // Status
   status: PaymentStatus;

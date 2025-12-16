@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PhoneInput } from "@/components/shared/phone-input";
@@ -7,9 +7,8 @@ import { Text } from "@/components/ui/text";
 import { ChevronRightIcon } from "@/components/ui/icon";
 import { Fab, FabIcon } from "@/components/ui/fab";
 import { sendOTP } from "@/services/auth";
-import { Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
-import { app } from "@/config/firebase";
+import { Alert, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const INSTRUCTIONS_TEXT = [
   { loginInstruction: "Please enter your mobile number" },
@@ -23,8 +22,23 @@ export default function Index() {
   const router = useRouter();
   const [isValid, setIsValid] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [loading, setLoading] = useState(false);
-  const recaptchaVerifier = useRef(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
 
   const handleValidationChange = (valid: boolean) => {
     setIsValid(valid);
@@ -40,60 +54,34 @@ export default function Index() {
       return;
     }
 
-    console.log("Sending OTP to:", phoneNumber);
-    setLoading(true);
-
     try {
-      console.log("Starting OTP send process...");
+      console.log("📱 Processing phone number:", phoneNumber);
 
-      // Use the reCAPTCHA verifier for phone authentication
-      const result = await sendOTP(phoneNumber, recaptchaVerifier.current);
-      console.log("OTP Result:", result);
-      
-      if (result.success) {
-        // Don't show alert, just navigate
-        router.push("/onboarding/otp");
-      } else {
-        // Show detailed error message
-        const errorMessage = result.error || "Failed to send OTP. Please try again.";
-        console.error("OTP send failed:", errorMessage);
-        Alert.alert(
-          "Error", 
-          errorMessage,
-          [
-            {
-              text: "OK",
-              style: "default"
-            },
-            // Add help button if billing error
-            ...(errorMessage.includes('billing') ? [{
-              text: "Learn More",
-              onPress: () => {
-                // You can add a link to Firebase docs here
-                console.log("Visit: https://firebase.google.com/docs/auth/phone-auth");
-              }
-            }] : [])
-          ]
-        );
-      }
+      // Format phone number
+      const formattedPhone = phoneNumber.replace(/\+/g, '').replace(/^91/, '');
+
+      console.log("📝 Formatted phone:", formattedPhone);
+
+      // Store phone number in AsyncStorage
+      await AsyncStorage.setItem('@dular:phone_number', formattedPhone);
+      console.log("✅ Phone number stored in AsyncStorage");
+
+      // Navigate to OTP screen with phone number as parameter
+      console.log("🔄 Navigating to OTP screen with phone:", formattedPhone);
+      router.push({
+        pathname: "/onboarding/otp",
+        params: { phoneNumber: formattedPhone }
+      });
     } catch (error: any) {
-      console.error("OTP Error:", error);
-      Alert.alert("Error", error.message || "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
+      console.error("❌ Error processing phone number:", error);
+      Alert.alert("Error", "Failed to process phone number. Please try again.");
     }
   };
 
   const insets = useSafeAreaInsets();
 
   return (
-    <>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={app.options}
-        attemptInvisibleVerification={true}
-      />
-      <KeyboardAvoidingView
+    <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1 bg-background-0"
         keyboardVerticalOffset={0}
@@ -124,17 +112,16 @@ export default function Index() {
         <Fab
         size="lg"
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
-        style={{ marginBottom: Math.max(insets.bottom, 20) }}
-        isDisabled={!isValid || loading}
+        style={{
+          marginBottom: keyboardHeight > 0
+            ? keyboardHeight + 10
+            : Math.max(insets.bottom, 20)
+        }}
+        isDisabled={!isValid}
         onPress={handleSendOTP}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <FabIcon as={ChevronRightIcon} />
-        )}
+        <FabIcon as={ChevronRightIcon} />
         </Fab>
       </KeyboardAvoidingView>
-    </>
   );
 }

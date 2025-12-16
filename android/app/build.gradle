@@ -92,7 +92,7 @@ android {
         applicationId 'com.santali.dating'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 12
+        versionCode 1
         versionName "12.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
@@ -104,12 +104,6 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
-        release {
-            storeFile file('../../android/@amdsubham__Dular.jks')
-            storePassword '46c502d2c41c0716f2800bed04ac4744'
-            keyAlias 'cafc9b245aaa71b3fbd92d3a5a8c100d'
-            keyPassword '14bd3479892fb3b3bf10a57b0405928b'
-        }
     }
     buildTypes {
         debug {
@@ -118,7 +112,7 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds

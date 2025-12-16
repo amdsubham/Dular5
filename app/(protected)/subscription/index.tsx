@@ -17,9 +17,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getSubscriptionPlans } from "@/services/subscription";
-import { PaymentModal } from "@/components/screens/subscription/payment-modal";
+import { PaymentModal } from "@/components/screens/subscription/payment-modal/instamojo";
 import { SubscriptionPlan, formatPrice, getPlanDurationText } from "@/types/subscription";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { auth, db } from "@/config/firebase";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 
@@ -38,6 +40,25 @@ export default function SubscriptionPage() {
     daysRemaining,
     refreshSubscription,
   } = useSubscription();
+
+  // Update lastActive timestamp when page loads
+  useEffect(() => {
+    const updateLastActive = async () => {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          await updateDoc(doc(db, "users", currentUser.uid), {
+            lastActive: serverTimestamp(),
+          });
+          console.log("✅ Updated lastActive timestamp");
+        } catch (error) {
+          console.error("❌ Error updating lastActive:", error);
+        }
+      }
+    };
+
+    updateLastActive();
+  }, []);
 
   // Load subscription plans
   useEffect(() => {

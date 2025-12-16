@@ -34,6 +34,11 @@ export const accordionItems = [
       }, [filters.interestedIn]);
 
       const handleChange = (newValue: string[]) => {
+        // Ensure at least one gender is selected
+        if (newValue.length === 0) {
+          console.warn('⚠️ Cannot unselect all genders - at least one must be selected');
+          return; // Don't allow empty selection
+        }
         setValue(newValue);
         updateFilters({ interestedIn: newValue });
       };
@@ -56,7 +61,7 @@ export const accordionItems = [
             <CheckboxIndicator>
               <CheckboxIcon as={CheckIcon} />
             </CheckboxIndicator>
-            <CheckboxLabel>Non binary</CheckboxLabel>
+            <CheckboxLabel>Other</CheckboxLabel>
           </Checkbox>
         </CheckboxGroup>
       );

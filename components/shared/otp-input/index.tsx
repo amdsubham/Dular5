@@ -10,6 +10,32 @@ interface OTPComponentProps {
 export const OTPComponent = ({ onComplete }: OTPComponentProps) => {
   const [otpValue, setOtpValue] = useState("");
 
+  const handleTextChange = (text: string) => {
+    // Ensure text is a string and trim it
+    const safeText = text != null ? String(text) : '';
+    const trimmedText = safeText.trim();
+
+    // Only take first 6 digits to prevent concatenation
+    const limitedText = trimmedText.slice(0, 6);
+
+    console.log('📝 OTP text changed:', limitedText, 'length:', limitedText.length, 'type:', typeof limitedText);
+    setOtpValue(limitedText);
+    // Always call onComplete to update parent state
+    onComplete(limitedText);
+  };
+
+  const handleFilled = (text: string) => {
+    // Ensure text is a string and trim it
+    const safeText = text != null ? String(text) : '';
+    const trimmedText = safeText.trim();
+
+    // Only take first 6 digits
+    const limitedText = trimmedText.slice(0, 6);
+
+    console.log('✅ OTP filled:', limitedText, 'length:', limitedText.length, 'type:', typeof limitedText);
+    onComplete(limitedText);
+  };
+
   return (
     <Box>
       <OtpInput
@@ -20,10 +46,8 @@ export const OTPComponent = ({ onComplete }: OTPComponentProps) => {
         blurOnFilled
         type="numeric"
         placeholder="------"
-        onTextChange={(text) => setOtpValue(text)}
-        onFilled={(text) => {
-          onComplete(text);
-        }}
+        onTextChange={handleTextChange}
+        onFilled={handleFilled}
         textInputProps={{
           accessibilityLabel: "One-Time Password",
         }}

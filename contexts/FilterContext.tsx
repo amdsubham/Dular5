@@ -20,7 +20,7 @@ const defaultFilters: FilterState = {
   maxAge: 99,
   maxDistance: 500, // km - maximum distance by default
   lookingFor: [],
-  interestedIn: [],
+  interestedIn: ['Man', 'Woman', 'Nonbinary'], // Default: show all genders
 };
 
 const FilterContext = createContext<FilterContextType | undefined>(undefined);
@@ -37,7 +37,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         if (userPrefs && !initialized) {
           setFilters((prev) => ({
             ...prev,
-            interestedIn: userPrefs.interestedIn || [],
+            // If user preferences exist, use them; otherwise use defaults
+            interestedIn: (userPrefs.interestedIn && userPrefs.interestedIn.length > 0)
+              ? userPrefs.interestedIn
+              : defaultFilters.interestedIn,
             lookingFor: userPrefs.lookingFor || [],
           }));
           setInitialized(true);

@@ -56,7 +56,21 @@
       "Bash(./gradlew:*)",
       "Bash($ANDROID_HOME/build-tools/*/aapt)",
       "Bash(dump badging:*)",
-      "Bash(keytool:*)"
+      "Bash(keytool:*)",
+      "Bash(export PATH=\"/usr/local/bin:/opt/homebrew/bin:$PATH\")",
+      "Bash(npx tsc:*)",
+      "Bash(firebase --version:*)",
+      "Bash(npx firebase-tools deploy --only functions:instamojoWebhook,functions:checkExpiredSubscriptions)",
+      "Bash(npx firebase-tools deploy:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(watchman watch-del-all:*)",
+      "Bash(PATH=\"/usr/local/bin:/opt/homebrew/bin:$PATH\" ./gradlew:*)",
+      "Bash(sudo ln:*)",
+      "Bash(grep:*)",
+      "Bash(adb shell:*)",
+      "Bash(firebase functions:log:*)",
+      "Bash(npx firebase-tools functions:log:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

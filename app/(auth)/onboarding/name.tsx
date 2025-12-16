@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ScrollView } from "react-native";
+import { ScrollView, KeyboardAvoidingView, Platform, Keyboard } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
 import { Progress } from "@/components/ui/progress";
 import { Box } from "@/components/ui/box";
@@ -17,6 +17,23 @@ const name = () => {
   const insets = useSafeAreaInsets();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
 
   const handleNext = async () => {
     if (firstName.trim() && lastName.trim()) {
@@ -29,8 +46,13 @@ const name = () => {
   };
 
   return (
-    <Box className="flex-1 bg-background-0">
-      <ScrollView
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-background-0"
+      keyboardVerticalOffset={0}
+    >
+      <Box className="flex-1 bg-background-0">
+        <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
           paddingBottom: Math.max(insets.bottom + 80, 100),
@@ -77,11 +99,16 @@ const name = () => {
         onPress={handleNext}
         isDisabled={!firstName.trim() || !lastName.trim()}
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
-        style={{ marginBottom: Math.max(insets.bottom, 20) }}
+        style={{
+          marginBottom: keyboardHeight > 0
+            ? keyboardHeight + 10
+            : Math.max(insets.bottom, 20)
+        }}
       >
         <FabIcon as={ChevronRightIcon} />
       </Fab>
     </Box>
+    </KeyboardAvoidingView>
   );
 };
 export default name;

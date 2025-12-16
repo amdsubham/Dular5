@@ -51,6 +51,7 @@ const SwipeCard = ({
 }: SwipeCardProps) => {
   const translateX = useSharedValue(0);
   const rotation = useSharedValue(0);
+  const [imageErrors, setImageErrors] = useState<{ [key: number]: boolean }>({});
 
   const triggerSwipe = (direction: "left" | "right") => {
     const isLeft = direction === "left";
@@ -150,10 +151,14 @@ const SwipeCard = ({
             </HStack>
 
             {/* Main Profile Image */}
-            {userData.pictures && userData.pictures[0] ? (
+            {userData.pictures && userData.pictures[0] && !imageErrors[0] ? (
               <ImageBackground
                 source={{ uri: userData.pictures[0] }}
                 className="w-full rounded-lg aspect-[0.8] justify-end overflow-hidden"
+                onError={() => {
+                  console.warn('❌ Failed to load main profile image');
+                  setImageErrors((prev) => ({ ...prev, 0: true }));
+                }}
               >
                 <LinearGradient
                   colors={["#12121200", "#121212bb"]}
@@ -164,12 +169,21 @@ const SwipeCard = ({
                 </LinearGradient>
               </ImageBackground>
             ) : (
-              <Box className="w-full rounded-lg aspect-[0.8] bg-background-100 items-center justify-center">
-                <Image
-                  source={require("@/assets/images/common/profile_avatar.png")}
-                  className="w-32 h-32"
-                  alt="profile"
-                />
+              <Box className="w-full rounded-lg aspect-[0.8] bg-background-100 items-center justify-center gap-3">
+                <Box className="w-20 h-20 rounded-full bg-background-200 items-center justify-center">
+                  <Image
+                    source={require("@/assets/images/common/profile_avatar.png")}
+                    className="w-16 h-16"
+                    alt="profile"
+                  />
+                </Box>
+                <Text className="text-typography-500 text-center px-6">
+                  Images Hidden
+                </Text>
+                <Box className="flex-row w-full justify-between px-4 mt-auto mb-4">
+                  <LoveBadge lovePercentage={userData.lovePercentage} size="lg" />
+                  <LocationBadge distance={userData.distance} size="lg" />
+                </Box>
               </Box>
             )}
 
@@ -197,15 +211,38 @@ const SwipeCard = ({
             )}
 
             {/* Additional Images */}
-            {userData.pictures && userData.pictures.slice(1, 5).map((imageUrl, index) => (
-              imageUrl ? (
-                <ImageBackground
-                  key={index}
-                  source={{ uri: imageUrl }}
-                  className="w-full rounded-lg aspect-square overflow-hidden"
-                />
-              ) : null
-            ))}
+            {userData.pictures && userData.pictures.slice(1, 5).map((imageUrl, index) => {
+              const imageIndex = index + 1; // Offset by 1 since main image is 0
+              return imageUrl ? (
+                !imageErrors[imageIndex] ? (
+                  <ImageBackground
+                    key={index}
+                    source={{ uri: imageUrl }}
+                    className="w-full rounded-lg aspect-square overflow-hidden"
+                    onError={() => {
+                      console.warn(`❌ Failed to load image ${imageIndex}`);
+                      setImageErrors((prev) => ({ ...prev, [imageIndex]: true }));
+                    }}
+                  />
+                ) : (
+                  <Box
+                    key={index}
+                    className="w-full rounded-lg aspect-square bg-background-100 items-center justify-center gap-2"
+                  >
+                    <Box className="w-16 h-16 rounded-full bg-background-200 items-center justify-center">
+                      <Image
+                        source={require("@/assets/images/common/profile_avatar.png")}
+                        className="w-12 h-12"
+                        alt="profile"
+                      />
+                    </Box>
+                    <Text className="text-typography-500 text-sm">
+                      Image Hidden
+                    </Text>
+                  </Box>
+                )
+              ) : null;
+            })}
           </Box>
         </ScrollView>
       </AnimatedBox>
