@@ -87,40 +87,42 @@ export default function UserSubscriptionsPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">User Subscriptions</h1>
-        <p className="text-gray-600 mt-2">View and manage all user subscription statuses</p>
+      <div className="mb-4 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">User Subscriptions</h1>
+        <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">View and manage all user subscription statuses</p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-md p-4 mb-6">
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="bg-white rounded-xl shadow-md p-3 md:p-4 mb-4 md:mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 flex-wrap">
           <div className="flex items-center gap-2 text-gray-700">
-            <Filter className="w-4 h-4" />
-            <span className="font-medium text-sm">Filter:</span>
+            <Filter className="w-3 h-3 md:w-4 md:h-4" />
+            <span className="font-medium text-xs md:text-sm">Filter:</span>
           </div>
 
-          {[
-            { value: 'all', label: 'All Users' },
-            { value: 'premium', label: 'Premium Only' },
-            { value: 'free', label: 'Free Only' },
-            { value: 'active', label: 'Active Subscriptions' },
-            { value: 'expired', label: 'Expired' },
-          ].map((filterOption) => (
-            <button
-              key={filterOption.value}
-              onClick={() => setFilter(filterOption.value as any)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === filterOption.value
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {filterOption.label}
-            </button>
-          ))}
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            {[
+              { value: 'all', label: 'All Users' },
+              { value: 'premium', label: 'Premium Only' },
+              { value: 'free', label: 'Free Only' },
+              { value: 'active', label: 'Active Subscriptions' },
+              { value: 'expired', label: 'Expired' },
+            ].map((filterOption) => (
+              <button
+                key={filterOption.value}
+                onClick={() => setFilter(filterOption.value as any)}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
+                  filter === filterOption.value
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {filterOption.label}
+              </button>
+            ))}
+          </div>
 
-          <div className="ml-auto text-sm text-gray-600">
+          <div className="sm:ml-auto text-xs md:text-sm text-gray-600 w-full sm:w-auto text-left sm:text-right">
             <span className="font-semibold">{subscriptions.length}</span> users
           </div>
         </div>
@@ -129,25 +131,25 @@ export default function UserSubscriptionsPage() {
       {/* Subscriptions Table */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[900px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Current Plan
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Swipes Usage
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Subscription Period
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Lifetime Swipes
                 </th>
               </tr>
@@ -158,13 +160,13 @@ export default function UserSubscriptionsPage() {
 
                 return (
                   <tr key={subscription.userId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-gradient-to-br from-primary-400 to-primary-600 w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold">
+                    <td className="px-3 md:px-6 py-3 md:py-4">
+                      <div className="flex items-center gap-2 md:gap-3">
+                        <div className="bg-gradient-to-br from-primary-400 to-primary-600 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-semibold text-xs md:text-sm">
                           {subscription.userId.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900 font-mono text-sm">
+                          <div className="font-medium text-gray-900 font-mono text-xs md:text-sm">
                             {subscription.userId.substring(0, 12)}...
                           </div>
                           <div className="text-xs text-gray-500">
@@ -173,11 +175,11 @@ export default function UserSubscriptionsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {subscription.isPremium && <Crown className="w-4 h-4 text-yellow-500" />}
+                    <td className="px-3 md:px-6 py-3 md:py-4">
+                      <div className="flex items-center gap-1.5 md:gap-2">
+                        {subscription.isPremium && <Crown className="w-3 h-3 md:w-4 md:h-4 text-yellow-500" />}
                         <span
-                          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getPlanBadgeColor(
+                          className={`inline-block px-2 md:px-3 py-1 rounded-full text-xs font-semibold ${getPlanBadgeColor(
                             subscription.currentPlan
                           )}`}
                         >
@@ -186,14 +188,14 @@ export default function UserSubscriptionsPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 md:px-6 py-3 md:py-4">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-xs md:text-sm font-medium text-gray-900">
                           {subscription.swipesUsedToday} / {subscription.swipesLimit === -1 ? '∞' : subscription.swipesLimit}
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 md:h-2 mt-1.5 md:mt-2">
                           <div
-                            className="bg-primary-600 h-2 rounded-full"
+                            className="bg-primary-600 h-1.5 md:h-2 rounded-full"
                             style={{
                               width: `${
                                 subscription.swipesLimit === -1
@@ -208,10 +210,10 @@ export default function UserSubscriptionsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 md:px-6 py-3 md:py-4">
                       {subscription.isPremium && subscription.planStartDate ? (
                         <div>
-                          <div className="text-sm text-gray-900">
+                          <div className="text-xs md:text-sm text-gray-900">
                             {formatDate(subscription.planStartDate)} -{' '}
                             {formatDate(subscription.planEndDate)}
                           </div>
@@ -221,12 +223,12 @@ export default function UserSubscriptionsPage() {
                           </div>
                         </div>
                       ) : (
-                        <span className="text-sm text-gray-500">No subscription</span>
+                        <span className="text-xs md:text-sm text-gray-500">No subscription</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 md:px-6 py-3 md:py-4">
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`inline-block px-2 md:px-3 py-1 rounded-full text-xs font-semibold ${
                           subscription.isActive && subscription.isPremium
                             ? 'bg-green-100 text-green-800'
                             : subscription.isPremium
@@ -241,10 +243,10 @@ export default function UserSubscriptionsPage() {
                           : 'Free'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-gray-400" />
-                        <span className="font-medium text-gray-900">
+                    <td className="px-3 md:px-6 py-3 md:py-4">
+                      <div className="flex items-center gap-1.5 md:gap-2">
+                        <TrendingUp className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
+                        <span className="font-medium text-gray-900 text-xs md:text-sm">
                           {subscription.totalSwipesAllTime.toLocaleString()}
                         </span>
                       </div>
@@ -256,19 +258,19 @@ export default function UserSubscriptionsPage() {
           </table>
 
           {subscriptions.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-2">No users found</p>
-              <p className="text-sm text-gray-500">Try adjusting your filters</p>
+            <div className="text-center py-8 md:py-12 px-4">
+              <Users className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
+              <p className="text-sm md:text-base text-gray-600 mb-1 md:mb-2">No users found</p>
+              <p className="text-xs md:text-sm text-gray-500">Try adjusting your filters</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Payment History Summary */}
-      <div className="mt-6 bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment History Summary</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="mt-4 md:mt-6 bg-white rounded-xl shadow-md p-4 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Payment History Summary</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {['daily', 'weekly', 'monthly'].map((plan) => {
             const planUsers = subscriptions.filter((sub) => sub.currentPlan === plan);
             const totalRevenue = planUsers.reduce(
@@ -277,29 +279,29 @@ export default function UserSubscriptionsPage() {
             );
 
             return (
-              <div key={plan} className="border border-gray-200 rounded-lg p-4">
-                <h3 className={`text-sm font-semibold mb-2 ${getPlanBadgeColor(plan)}`}>
+              <div key={plan} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                <h3 className={`text-xs md:text-sm font-semibold mb-2 ${getPlanBadgeColor(plan)}`}>
                   {plan.charAt(0).toUpperCase() + plan.slice(1)} Plan
                 </h3>
-                <div className="text-2xl font-bold text-gray-900 mb-1">{planUsers.length}</div>
-                <div className="text-sm text-gray-600">users</div>
+                <div className="text-xl md:text-2xl font-bold text-gray-900 mb-1">{planUsers.length}</div>
+                <div className="text-xs md:text-sm text-gray-600">users</div>
                 <div className="mt-2 pt-2 border-t border-gray-200">
                   <div className="text-xs text-gray-600">Total Revenue</div>
-                  <div className="text-lg font-bold text-gray-900">₹{totalRevenue}</div>
+                  <div className="text-base md:text-lg font-bold text-gray-900">₹{totalRevenue}</div>
                 </div>
               </div>
             );
           })}
 
-          <div className="border border-primary-200 bg-primary-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-primary-900 mb-2">Free Users</h3>
-            <div className="text-2xl font-bold text-primary-900 mb-1">
+          <div className="border border-primary-200 bg-primary-50 rounded-lg p-3 md:p-4">
+            <h3 className="text-xs md:text-sm font-semibold text-primary-900 mb-2">Free Users</h3>
+            <div className="text-xl md:text-2xl font-bold text-primary-900 mb-1">
               {subscriptions.filter((sub) => sub.currentPlan === 'free').length}
             </div>
-            <div className="text-sm text-primary-700">users</div>
+            <div className="text-xs md:text-sm text-primary-700">users</div>
             <div className="mt-2 pt-2 border-t border-primary-200">
               <div className="text-xs text-primary-700">Conversion Potential</div>
-              <div className="text-lg font-bold text-primary-900">High</div>
+              <div className="text-base md:text-lg font-bold text-primary-900">High</div>
             </div>
           </div>
         </div>

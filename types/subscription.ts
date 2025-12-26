@@ -28,7 +28,6 @@ export enum PaymentStatus {
  * Payment gateway provider
  */
 export enum PaymentProvider {
-  CCAVENUE = "ccavenue",
   INSTAMOJO = "instamojo",
 }
 
@@ -64,12 +63,7 @@ export interface SubscriptionConfig {
   // Free trial settings
   freeTrialSwipeLimit: number; // Number of swipes allowed in free trial (e.g., 5)
 
-  // CCAvenue settings (deprecated - use Instamojo instead)
-  ccavenueAccessCode?: string; // CCAvenue Access Code
-  ccavenueMerchantId?: string; // CCAvenue Merchant ID
-  ccavenueWorkingKey?: string; // CCAvenue Working Key (stored securely, not exposed to client)
-
-  // Instamojo settings
+  // Instamojo settings (payment gateway configuration managed in Firebase Cloud Functions)
   instamojoApiKey?: string; // Instamojo API Key
   instamojoAuthToken?: string; // Instamojo Auth Token
   instamojoPrivateSalt?: string; // Instamojo Private Salt for webhook verification
@@ -79,7 +73,6 @@ export interface SubscriptionConfig {
 
   // Feature flags
   subscriptionEnabled: boolean; // Master toggle for subscription feature
-  paymentProvider: PaymentProvider; // Active payment provider
 
   // Timestamps
   updatedAt: Date;
@@ -282,6 +275,9 @@ export interface UseSubscriptionReturn {
   isPremium: boolean;
   isExpired: boolean;
   daysRemaining: number;
+
+  // Feature flag
+  subscriptionEnabled: boolean;
 }
 
 // ============================================================================

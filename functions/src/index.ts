@@ -404,69 +404,56 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
     if (!phoneFromWebhook && payment_id) {
       console.log("\n🔄 FETCHING PAYMENT DETAILS FROM INSTAMOJO API...");
       try {
-        const configDoc = await admin.firestore()
-          .collection("subscriptionConfig")
-          .doc("default")
-          .get();
+        // Hardcoded credentials as per Instamojo support
+        const apiKey = "ebda991171c87967040b2b29e49f75f2";
+        const authToken = "fa95ede4898f41b4ad82fecaaf06b778";
 
-        if (configDoc.exists) {
-          const config = configDoc.data();
-          // Access nested instamojo object
-          const instamojoConfig = config?.instamojo;
-          const apiKey = instamojoConfig?.instamojoApiKey;
-          const authToken = instamojoConfig?.instamojoAuthToken;
+        console.log("  • API Key (first 10 chars):", apiKey.substring(0, 10) + "...");
+        console.log("  • Auth Token (first 10 chars):", authToken.substring(0, 10) + "...");
 
-          if (apiKey && authToken) {
-            console.log("  • API Key (first 10 chars):", apiKey.substring(0, 10) + "...");
-            console.log("  • Auth Token (first 10 chars):", authToken.substring(0, 10) + "...");
-            console.log("  • Requesting URL:", `https://api.instamojo.com/v2/payments/${payment_id}/`);
+        // Use the correct API endpoint as per Instamojo documentation
+        const apiUrl = `https://www.instamojo.com/api/1.1/payments/${payment_id}/`;
+        console.log("  • Requesting URL:", apiUrl);
 
-            // Try using the v1.1 API endpoint which works with Private API credentials
-            const apiUrl = `https://api.instamojo.com/v1.1/payments/${payment_id}/`;
-            console.log("  • Trying v1.1 API:", apiUrl);
-
-            // Fetch payment details from Instamojo using Basic Auth
-            const authString = `${apiKey}:${authToken}`;
-            const base64Auth = Buffer.from(authString).toString('base64');
-
-            const response = await fetch(apiUrl, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Basic ${base64Auth}`,
-                'Content-Type': 'application/json'
-              }
-            });
-
-            console.log("  • API Response Status:", response.status, response.statusText);
-
-            if (response.ok) {
-              const paymentDetails = await response.json();
-              console.log("✅ Fetched payment details:", JSON.stringify(paymentDetails, null, 2));
-
-              // Extract phone from API response
-              const apiPhone = paymentDetails.phone ||
-                              paymentDetails.buyer_phone ||
-                              paymentDetails.payment?.phone ||
-                              paymentDetails.payment?.buyer_phone;
-
-              if (apiPhone) {
-                console.log("✅ PHONE FOUND IN API:", apiPhone);
-                webhookData.buyer_phone = apiPhone; // Add to webhook data
-              } else {
-                console.error("❌ API response also lacks phone number");
-                console.error("  • Available fields:", Object.keys(paymentDetails));
-              }
-            } else {
-              const errorText = await response.text();
-              console.error("❌ API request failed!");
-              console.error("  • Status:", response.status, response.statusText);
-              console.error("  • Response:", errorText);
-            }
-          } else {
-            console.warn("⚠️ API credentials not configured");
-            console.warn("  • API Key present:", !!apiKey);
-            console.warn("  • Auth Token present:", !!authToken);
+        // Fetch payment details from Instamojo using X-Api-Key and X-Auth-Token headers
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'X-Api-Key': apiKey,
+            'X-Auth-Token': authToken,
+            'Content-Type': 'application/json'
           }
+        });
+
+        console.log("  • API Response Status:", response.status, response.statusText);
+
+        if (response.ok) {
+          const paymentDetails = await response.json();
+          console.log("\n✅ FULL API RESPONSE FROM INSTAMOJO:");
+          console.log(JSON.stringify(paymentDetails, null, 2));
+
+          // Extract phone from API response - check payment object
+          const payment = paymentDetails.payment;
+          const apiPhone = payment?.buyer_phone ||
+                          payment?.phone ||
+                          paymentDetails.buyer_phone ||
+                          paymentDetails.phone;
+
+          if (apiPhone) {
+            console.log("✅ PHONE FOUND IN API:", apiPhone);
+            webhookData.buyer_phone = apiPhone; // Add to webhook data
+          } else {
+            console.error("❌ API response also lacks phone number");
+            console.error("  • Available fields in response:", Object.keys(paymentDetails));
+            if (payment) {
+              console.error("  • Available fields in payment object:", Object.keys(payment));
+            }
+          }
+        } else {
+          const errorText = await response.text();
+          console.error("❌ API request failed!");
+          console.error("  • Status:", response.status, response.statusText);
+          console.error("  • Response:", errorText);
         }
       } catch (error) {
         console.error("❌ Error fetching payment details from API:", error);
@@ -488,6 +475,10 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
         phoneNumber.replace(/[\s\-\(\)]/g, ""), // Remove spaces, dashes, parentheses
         phoneNumber.replace(/[\s\-\(\)]/g, "").replace(/^\+91/, ""), // Clean and remove +91
         phoneNumber.replace(/[\s\-\(\)]/g, "").replace(/^91/, ""), // Clean and remove 91
+        `+91${phoneNumber}`, // Add +91 prefix
+        `91${phoneNumber}`, // Add 91 prefix
+        `+91${phoneNumber.replace(/^\+91/, "").replace(/^91/, "")}`, // Clean then add +91
+        `91${phoneNumber.replace(/^\+91/, "").replace(/^91/, "")}`, // Clean then add 91
       ];
 
       console.log("  • Trying", phoneFormats.length, "different formats:");
@@ -630,30 +621,114 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
     }
 
     // Find or create transaction record
-    const transactionQuery = await admin.firestore()
-      .collection("transactions")
-      .where("orderId", "==", payment_request_id)
-      .limit(1)
-      .get();
+    let transactionQuery;
+    let shouldCreateTransaction = true;
+
+    // Try multiple strategies to find existing transaction
+    console.log("\n🔍 SEARCHING FOR EXISTING TRANSACTION:");
+
+    // Strategy 1: Search by payment_request_id (orderId)
+    if (payment_request_id) {
+      console.log("  • Strategy 1: Searching by payment_request_id (orderId):", payment_request_id);
+      transactionQuery = await admin.firestore()
+        .collection("transactions")
+        .where("orderId", "==", payment_request_id)
+        .limit(1)
+        .get();
+
+      if (!transactionQuery.empty) {
+        console.log("  ✅ Found transaction by payment_request_id");
+        shouldCreateTransaction = false;
+      } else {
+        console.log("  ❌ No transaction found by payment_request_id");
+      }
+    }
+
+    // Strategy 2: Search by userId + PENDING status (most recent)
+    if (shouldCreateTransaction && userId) {
+      console.log("  • Strategy 2: Searching by userId + PENDING status");
+      const fiveMinutesAgo = admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
+      );
+
+      transactionQuery = await admin.firestore()
+        .collection("transactions")
+        .where("userId", "==", userId)
+        .where("status", "==", "PENDING")
+        .where("provider", "==", "instamojo")
+        .where("createdAt", ">=", fiveMinutesAgo)
+        .orderBy("createdAt", "desc")
+        .limit(1)
+        .get();
+
+      if (!transactionQuery.empty) {
+        console.log("  ✅ Found transaction by userId + PENDING status");
+        const foundTransaction = transactionQuery.docs[0].data();
+        console.log("    • Transaction ID:", transactionQuery.docs[0].id);
+        console.log("    • Plan ID:", foundTransaction.planId);
+        console.log("    • Amount:", foundTransaction.amount);
+        console.log("    • Created:", foundTransaction.createdAt?.toDate?.());
+        shouldCreateTransaction = false;
+      } else {
+        console.log("  ❌ No recent PENDING transaction found for user");
+      }
+    }
 
     let transactionDoc;
     let transaction: any;
 
-    if (transactionQuery.empty) {
-      console.warn("⚠️ Transaction not found, creating new one");
+    if (shouldCreateTransaction) {
+      console.warn("\n⚠️ NO EXISTING TRANSACTION FOUND!");
+      console.warn("⚠️ This should NOT happen in normal flow!");
+      console.warn("⚠️ Creating fallback transaction (plan determination may be incorrect)");
 
-      // Determine plan type based on amount
-      let planType = "daily";
+      // Determine plan type by checking the smart link URL used
+      let planType = "daily"; // default
       const paymentAmount = parseFloat(amount);
       console.log("💰 Payment amount:", paymentAmount);
 
-      if (paymentAmount >= 450) {
-        planType = "monthly";
-      } else if (paymentAmount >= 180) {
-        planType = "weekly";
+      // Smart link IDs for each plan (from instamojo.tsx)
+      const SMART_LINK_IDS = {
+        monthly: "qQBgZ7",
+        weekly: "xU7gCw",
+        daily: "hbvW2s",
+      };
+
+      // Try to detect plan from the smart link URL fields
+      if (shorturl || longurl) {
+        const url = shorturl || longurl;
+        console.log("🔗 Smart link URL:", url);
+
+        // Check which smart link was used
+        if (url.includes(SMART_LINK_IDS.monthly)) {
+          planType = "monthly";
+          console.log("✅ Detected MONTHLY plan from smart link URL");
+        } else if (url.includes(SMART_LINK_IDS.weekly)) {
+          planType = "weekly";
+          console.log("✅ Detected WEEKLY plan from smart link URL");
+        } else if (url.includes(SMART_LINK_IDS.daily)) {
+          planType = "daily";
+          console.log("✅ Detected DAILY plan from smart link URL");
+        } else {
+          console.warn("⚠️ Could not detect plan from URL, falling back to amount-based detection");
+          // Fallback to amount-based detection
+          if (paymentAmount >= 350) {
+            planType = "monthly";
+          } else if (paymentAmount >= 150) {
+            planType = "weekly";
+          }
+        }
+      } else {
+        console.warn("⚠️ No smart link URL in webhook, using amount-based detection");
+        // Fallback to amount-based detection if no URL available
+        if (paymentAmount >= 350) {
+          planType = "monthly";
+        } else if (paymentAmount >= 150) {
+          planType = "weekly";
+        }
       }
 
-      console.log("📋 Determined plan type:", planType, "for amount:", paymentAmount);
+      console.log("📋 Determined plan type (fallback):", planType, "for amount:", paymentAmount);
 
       // Create new transaction record
       const userData = userDoc?.data();
@@ -670,9 +745,9 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
           amount: paymentAmount,
           currency: currency || "INR",
           provider: "instamojo",
-          orderId: payment_request_id,
+          orderId: payment_request_id || payment_id, // Use payment_id if payment_request_id is missing
           instamojoPaymentId: payment_id,
-          instamojoPaymentRequestId: payment_request_id,
+          instamojoPaymentRequestId: payment_request_id || null, // Set to null if undefined
           status: "SUCCESS",
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -684,23 +759,33 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
       transactionDoc = await newTransactionRef.get();
       transaction = transactionDoc.data();
     } else {
-      transactionDoc = transactionQuery.docs[0];
-      transaction = transactionDoc.data();
-      console.log("📄 Transaction found:", transactionDoc.id);
+      // Transaction exists, update it
+      if (transactionQuery && !transactionQuery.empty) {
+        transactionDoc = transactionQuery.docs[0];
+        transaction = transactionDoc.data();
+        console.log("\n📄 EXISTING TRANSACTION FOUND:");
+        console.log("  • Transaction ID:", transactionDoc.id);
+        console.log("  • Plan ID:", transaction.planId);
+        console.log("  • Plan Type:", transaction.planType);
+        console.log("  • Amount:", transaction.amount);
+        console.log("  • Status:", transaction.status);
 
-      // Update existing transaction
-      await transactionDoc.ref.update({
-        paymentId: payment_id,
-        status: "SUCCESS",
-        trackingId: payment_id,
-        amount: parseFloat(amount),
-        fees: parseFloat(fees || "0"),
-        currency: currency || "INR",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        webhookData: webhookData,
-      });
+        // Update existing transaction with payment details
+        await transactionDoc.ref.update({
+          instamojoPaymentId: payment_id,
+          instamojoPaymentRequestId: payment_request_id || null,
+          status: "SUCCESS",
+          amount: parseFloat(amount),
+          fees: parseFloat(fees || "0"),
+          currency: currency || "INR",
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          webhookData: webhookData,
+        });
 
-      console.log("✅ Transaction updated successfully");
+        console.log("✅ Transaction updated successfully");
+        console.log("  • Will use planId from transaction:", transaction.planId);
+      }
     }
 
     // Calculate subscription dates
@@ -732,6 +817,36 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
 
     console.log("  • End date:", endDate.toISOString());
 
+    // Fetch plan details from Firestore to get the correct swipe limit
+    console.log("\n📋 FETCHING PLAN DETAILS:");
+    const plansRef = admin.firestore().collection("subscriptionPlans").doc("plans");
+    const plansDoc = await plansRef.get();
+
+    let swipesLimit = 5; // Default for free plan
+    let isPremium = false;
+
+    if (plansDoc.exists) {
+      const plansData = plansDoc.data();
+      const planData = plansData ? plansData[transaction.planType] : null;
+
+      if (planData) {
+        swipesLimit = planData.swipeLimit || swipesLimit;
+        isPremium = transaction.planType !== "free";
+        console.log("  • Plan found:", transaction.planType);
+        console.log("  • Swipe limit from plan:", swipesLimit);
+      } else {
+        console.warn("  ⚠️ Plan data not found for:", transaction.planType);
+        // Fallback to hardcoded values
+        swipesLimit = transaction.planType === "daily" ? 50 : transaction.planType === "weekly" ? 100 : -1;
+        isPremium = true;
+      }
+    } else {
+      console.warn("  ⚠️ Plans document not found, using fallback values");
+      // Fallback to hardcoded values
+      swipesLimit = transaction.planType === "daily" ? 50 : transaction.planType === "weekly" ? 100 : -1;
+      isPremium = true;
+    }
+
     // Update or create user subscription
     console.log("\n💾 UPDATING FIRESTORE SUBSCRIPTION:");
     const subscriptionRef = admin.firestore()
@@ -744,12 +859,14 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
 
     const subscriptionData = {
       currentPlan: transaction.planType,
-      startDate: admin.firestore.Timestamp.fromDate(now),
-      endDate: admin.firestore.Timestamp.fromDate(endDate),
+      planStartDate: admin.firestore.Timestamp.fromDate(now),
+      planEndDate: admin.firestore.Timestamp.fromDate(endDate),
       isActive: true,
+      isPremium: isPremium,
       autoRenew: false,
       swipesUsedToday: 0,
-      lastSwipeResetDate: admin.firestore.Timestamp.fromDate(now),
+      swipesLimit: swipesLimit,
+      lastSwipeDate: admin.firestore.Timestamp.fromDate(now),
     };
 
     if (subscriptionDoc.exists) {
@@ -762,18 +879,21 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
       });
 
       console.log("  ✅ Subscription UPDATED!");
+      console.log("  • New swipe limit:", swipesLimit);
     } else {
       console.log("  • Action: CREATING new subscription");
 
       await subscriptionRef.set({
         userId: userId,
         ...subscriptionData,
-        swipesLimit: transaction.planType === "daily" ? 100 : transaction.planType === "weekly" ? 500 : 999999,
+        totalSwipesAllTime: 0,
+        paymentHistory: [],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
       console.log("  ✅ Subscription CREATED!");
+      console.log("  • Swipe limit:", swipesLimit);
     }
 
     console.log("\n✅ SUBSCRIPTION ACTIVATION COMPLETE!");

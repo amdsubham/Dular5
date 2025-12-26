@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { getUserPreferences } from '@/services/matching';
+import { updateUserProfile } from '@/services/profile';
+import { analytics } from '@/services/analytics';
 
 export interface FilterState {
   minAge: number;
@@ -54,8 +56,38 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     loadUserPreferences();
   }, [initialized]);
 
-  const updateFilters = (newFilters: Partial<FilterState>) => {
+  const updateFilters = async (newFilters: Partial<FilterState>) => {
+    // Update local state first
     setFilters((prev) => ({ ...prev, ...newFilters }));
+
+    // Save interestedIn and lookingFor to database if they changed
+    try {
+      const profileUpdates: Partial<{ interestedIn: string[]; lookingFor: string[] }> = {};
+
+      if (newFilters.interestedIn !== undefined) {
+        profileUpdates.interestedIn = newFilters.interestedIn;
+        console.log('💾 Saving interestedIn to database:', newFilters.interestedIn);
+      }
+
+      if (newFilters.lookingFor !== undefined) {
+        profileUpdates.lookingFor = newFilters.lookingFor;
+        console.log('💾 Saving lookingFor to database:', newFilters.lookingFor);
+      }
+
+      // Only update database if there are profile changes
+      if (Object.keys(profileUpdates).length > 0) {
+        await updateUserProfile(profileUpdates);
+        console.log('✅ Filter preferences saved to database successfully');
+      }
+
+      // Track filter usage in analytics
+      await analytics.trackFilterUsage(newFilters).catch(err =>
+        console.warn('Analytics tracking failed:', err)
+      );
+    } catch (error) {
+      console.error('❌ Error saving filter preferences to database:', error);
+      // Don't throw error - filter still works locally even if save fails
+    }
   };
 
   const resetFilters = () => {

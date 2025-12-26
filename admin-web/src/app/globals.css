@@ -23,3 +23,33 @@ body {
     text-wrap: balance;
   }
 }
+
+@layer base {
+  /* Ensure smooth scrolling on mobile */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Improve touch scrolling */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer components {
+  /* Responsive table wrapper */
+  .responsive-table-wrapper {
+    @apply overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
+  }
+
+  /* Mobile-friendly card */
+  .mobile-card {
+    @apply p-4 md:p-6 rounded-xl shadow-md bg-white;
+  }
+
+  /* Responsive button */
+  .btn-responsive {
+    @apply px-3 py-2 md:px-4 md:py-2.5 text-sm md:text-base rounded-lg transition-colors;
+  }
+}

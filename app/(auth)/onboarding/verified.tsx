@@ -59,9 +59,9 @@ const verified = () => {
     if (isComplete) {
       router.replace("/(protected)/(root)/home");
     } else if (nextStep) {
-      router.push(`/onboarding/${nextStep}`);
+      router.push(`/(auth)/onboarding/${nextStep}`);
     } else {
-      router.push("/onboarding/name");
+      router.push("/(auth)/onboarding/name");
     }
   };
 
@@ -88,7 +88,7 @@ const verified = () => {
       </AnimatedText>
       {!isComplete && (
         <Fab
-          className="bg-background-950 rounded-lg w-auto h-[48px] absolute bottom-11 right-5 data-[active=true]:bg-background-900"
+          className="bg-background-950 rounded-lg w-auto h-[48px] absolute bottom-32 right-5 data-[active=true]:bg-background-900"
           onPress={handleContinue}
           style={{ marginBottom: -1 * insets.bottom }}
         >

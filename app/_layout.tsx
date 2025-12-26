@@ -71,7 +71,7 @@ export default function RootLayout() {
     // Simulate loading time - replace with actual initialization logic
     const timer = setTimeout(() => {
       setIsReady(true);
-    }, 1800); // Show splash screen for 1.8 seconds
+    }, 3000); // Show splash screen for 3 seconds
 
     return () => {
       clearTimeout(timer);

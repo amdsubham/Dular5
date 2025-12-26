@@ -57,7 +57,7 @@ const Location = () => {
         }
 
         // Navigate to done screen
-        router.push("/onboarding/done");
+        router.push("/(auth)/onboarding/done");
       } else {
         Alert.alert(
           "Location Error",

@@ -47,9 +47,6 @@ export interface SubscriptionPlan {
 
 export interface SubscriptionConfig {
   freeTrialSwipeLimit: number;
-  ccavenueAccessCode: string;
-  ccavenueMerchantId: string;
-  ccavenueWorkingKey: string;
   subscriptionEnabled: boolean;
   updatedAt: Date;
   updatedBy: string;
@@ -88,9 +85,8 @@ export interface Transaction {
   amount: number;
   currency: string;
   provider: string;
-  ccavenueOrderId: string | null;
-  ccavenueTrackingId: string | null;
-  ccavenuePaymentMode: string | null;
+  instamojoPaymentId?: string | null;
+  instamojoPaymentRequestId?: string | null;
   status: 'pending' | 'success' | 'failed';
   createdAt: Date;
   completedAt: Date | null;
@@ -664,9 +660,6 @@ export async function initializeDefaultPlans(): Promise<{ success: boolean; mess
     // Create default configuration
     const defaultConfig = {
       freeTrialSwipeLimit: 5,
-      ccavenueAccessCode: 'AVNF94KH56AC67FNCA',
-      ccavenueMerchantId: '2718018',
-      ccavenueWorkingKey: 'E6FF0434306EFA9066D8BFB4C55C8F81',
       subscriptionEnabled: true,
       updatedAt: Timestamp.now(),
       updatedBy: 'admin',

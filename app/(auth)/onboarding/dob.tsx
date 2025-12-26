@@ -40,38 +40,70 @@ const dob = () => {
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
+    console.log("handleDateChange called, event type:", event?.type, "selectedDate:", selectedDate);
+
     if (Platform.OS === "android") {
       setShowPicker(false);
       // On Android, if user cancels, event.type will be 'dismissed'
       if (event.type === "dismissed" || !selectedDate) {
+        console.log("Date picker dismissed or no date selected");
         return;
       }
     }
+
     if (selectedDate) {
       const age = calculateAge(selectedDate);
+      console.log("Android - Calculated age:", age);
+
       if (age < 18) {
+        console.log("Android - Age validation failed: too young");
         alert("You must be at least 18 years old to use this app.");
         setShowPicker(false);
         return;
       }
       if (age > 100) {
+        console.log("Android - Age validation failed: too old");
         alert("Please enter a valid date of birth.");
         setShowPicker(false);
         return;
       }
+
+      console.log("Android - Setting date and selectedDate:", selectedDate);
       setDate(selectedDate);
       setSelectedDate(selectedDate);
     }
   };
 
   const handleNext = async () => {
-    if (selectedDate) {
+    try {
+      console.log("handleNext called, selectedDate:", selectedDate);
+
+      if (!selectedDate) {
+        alert("Please select your date of birth");
+        return;
+      }
+
+      // Validate age one more time before proceeding
+      const age = calculateAge(selectedDate);
+      if (age < 18) {
+        alert("You must be at least 18 years old to use this app.");
+        return;
+      }
+      if (age > 100) {
+        alert("Please enter a valid date of birth.");
+        return;
+      }
+
+      console.log("Updating onboarding progress with DOB:", selectedDate.toISOString());
       await updateOnboardingProgress("dob", {
         dob: selectedDate.toISOString(),
       });
-      router.push("/onboarding/gender");
-    } else {
-      alert("Please select your date of birth");
+
+      console.log("Navigation to gender screen");
+      router.push("/(auth)/onboarding/gender");
+    } catch (error) {
+      console.error("Error in handleNext:", error);
+      alert("An error occurred. Please try again.");
     }
   };
 
@@ -151,15 +183,22 @@ const dob = () => {
                     </Pressable>
                     <Pressable
                       onPress={() => {
+                        console.log("Done button pressed, date:", date);
                         const age = calculateAge(date);
+                        console.log("Calculated age:", age);
+
                         if (age < 18) {
+                          console.log("Age validation failed: too young");
                           alert("You must be at least 18 years old to use this app.");
                           return;
                         }
                         if (age > 100) {
+                          console.log("Age validation failed: too old");
                           alert("Please enter a valid date of birth.");
                           return;
                         }
+
+                        console.log("Setting selectedDate:", date);
                         setSelectedDate(date);
                         setShowPicker(false);
                       }}

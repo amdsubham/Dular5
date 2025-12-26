@@ -37,6 +37,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     isPremium,
     isExpired,
     daysRemaining,
+    subscriptionEnabled,
     checkCanSwipe,
     incrementSwipe,
     refreshSubscription,
@@ -93,5 +94,6 @@ export const useSubscription = (): UseSubscriptionReturn => {
     isPremium,
     isExpired,
     daysRemaining,
+    subscriptionEnabled,
   };
 };

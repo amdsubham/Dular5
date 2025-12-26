@@ -64,6 +64,9 @@ interface SubscriptionContextValue {
   isActive: boolean;
   daysRemaining: number;
 
+  // Feature flag
+  subscriptionEnabled: boolean;
+
   // Actions
   checkCanSwipe: () => Promise<boolean>;
   incrementSwipe: () => Promise<void>;
@@ -163,9 +166,13 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
         const subscriptionData = await getUserSubscription(user.uid);
         setSubscription(subscriptionData);
 
-        // Load swipes remaining
-        const remaining = await getSwipesRemaining(user.uid);
-        setSwipesRemaining(remaining);
+        // Load swipes remaining (or set to unlimited if subscriptions disabled)
+        if (configData?.subscriptionEnabled !== false) {
+          const remaining = await getSwipesRemaining(user.uid);
+          setSwipesRemaining(remaining);
+        } else {
+          setSwipesRemaining(999999); // Unlimited when subscriptions are disabled
+        }
 
         // Load summary
         const summaryData = await getSubscriptionSummary(user.uid);
@@ -189,8 +196,19 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
   useEffect(() => {
     if (!user?.uid) return;
 
+    console.log("🔔 Setting up real-time subscription listener for user:", user.uid);
+
     // Subscribe to real-time subscription updates
     const unsubscribe = subscribeToUserSubscription(user.uid, async (updatedSubscription) => {
+      console.log("🔔 Real-time update received!");
+
+      if (updatedSubscription) {
+        console.log("   • Plan:", updatedSubscription.currentPlan);
+        console.log("   • Premium:", updatedSubscription.isPremium);
+        console.log("   • Swipe Limit:", updatedSubscription.swipesLimit);
+        console.log("   • Swipes Used:", updatedSubscription.swipesUsedToday);
+      }
+
       setSubscription(updatedSubscription);
 
       // Update swipes remaining when subscription changes
@@ -205,6 +223,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
     });
 
     return () => {
+      console.log("🔕 Cleaning up real-time subscription listener");
       unsubscribe();
     };
   }, [user?.uid]);
@@ -249,13 +268,22 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
   // Computed Values
   // ============================================================================
 
-  const isPremium = subscription?.isPremium || false;
-  const isExpired = subscription ? isSubscriptionExpired(subscription) : false;
-  const isActive = subscription?.isActive || false;
-  const daysRemaining = subscription ? getDaysRemaining(subscription) : 0;
-  const swipesUsedToday = subscription?.swipesUsedToday || 0;
-  const swipesLimit = subscription?.swipesLimit || 0;
-  const canSwipe = swipesRemaining > 0;
+  // Check if subscription feature is enabled
+  const subscriptionEnabled = config?.subscriptionEnabled !== false; // Default to true if not set
+
+  // When subscriptions are disabled, everyone has unlimited access
+  const isPremium = subscriptionEnabled ? (subscription?.isPremium || false) : false;
+  const isExpired = subscriptionEnabled ? (subscription ? isSubscriptionExpired(subscription) : false) : false;
+  const isActive = subscriptionEnabled ? (subscription?.isActive || false) : true;
+  const daysRemaining = subscriptionEnabled ? (subscription ? getDaysRemaining(subscription) : 0) : 999;
+  const swipesUsedToday = subscriptionEnabled ? (subscription?.swipesUsedToday || 0) : 0;
+  const swipesLimit = subscriptionEnabled ? (subscription?.swipesLimit || 0) : 999999; // Unlimited when disabled
+
+  // FIXED: Compute canSwipe directly from subscription data instead of swipesRemaining state
+  // This prevents the bug where swipesRemaining state is 0 before it's updated
+  const canSwipe = subscriptionEnabled
+    ? (subscription ? (subscription.swipesUsedToday < subscription.swipesLimit) : false)
+    : true; // Always true when disabled
 
   // ============================================================================
   // Actions
@@ -306,8 +334,17 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
     if (!user?.uid) return;
 
     try {
+      console.log("🔄 Manual refresh subscription called for user:", user.uid);
       setLoading(true);
       const subscriptionData = await getUserSubscription(user.uid);
+
+      if (subscriptionData) {
+        console.log("   • Retrieved Plan:", subscriptionData.currentPlan);
+        console.log("   • Premium:", subscriptionData.isPremium);
+        console.log("   • Swipe Limit:", subscriptionData.swipesLimit);
+        console.log("   • Swipes Used Today:", subscriptionData.swipesUsedToday);
+      }
+
       setSubscription(subscriptionData);
 
       const remaining = await getSwipesRemaining(user.uid);
@@ -316,9 +353,10 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
       const summaryData = await getSubscriptionSummary(user.uid);
       setSummary(summaryData);
 
+      console.log("✅ Manual refresh completed");
       setLoading(false);
     } catch (err) {
-      console.error("Error refreshing subscription:", err);
+      console.error("❌ Error refreshing subscription:", err);
       setError(err as Error);
       setLoading(false);
     }
@@ -393,6 +431,9 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
     isExpired,
     isActive,
     daysRemaining,
+
+    // Feature flag
+    subscriptionEnabled,
 
     // Actions
     checkCanSwipe,

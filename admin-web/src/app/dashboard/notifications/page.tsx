@@ -136,17 +136,17 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Send Push Notifications</h1>
+    <div className="p-4 md:p-6 lg:p-8">
+      <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 md:mb-6 lg:mb-8">Send Push Notifications</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Notification Form */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Compose Notification</h2>
+        <div className="bg-white rounded-xl shadow-md p-4 md:p-6">
+          <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Compose Notification</h2>
 
-          <form onSubmit={handleSend} className="space-y-4">
+          <form onSubmit={handleSend} className="space-y-3 md:space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                 Notification Title
               </label>
               <input
@@ -154,13 +154,13 @@ export default function NotificationsPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Enter notification title"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                 Message
               </label>
               <textarea
@@ -168,13 +168,13 @@ export default function NotificationsPage() {
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Enter your message"
                 rows={5}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
+                className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                 Image URL (Optional)
               </label>
               <input
@@ -182,7 +182,7 @@ export default function NotificationsPage() {
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 placeholder="https://example.com/image.jpg"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Add an image URL to display in the notification (must be a publicly accessible URL)
@@ -227,32 +227,32 @@ export default function NotificationsPage() {
             <button
               type="submit"
               disabled={sending}
-              className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2.5 md:py-3 text-sm md:text-base rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4 md:w-5 md:h-5" />
               {sending ? 'Sending...' : 'Send Notification'}
             </button>
           </form>
 
           {/* Preview */}
           {(title || body || imageUrl) && (
-            <div className="mt-6 border-t pt-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Preview</h3>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="mt-4 md:mt-6 border-t pt-4 md:pt-6">
+              <h3 className="text-xs md:text-sm font-medium text-gray-700 mb-2 md:mb-3">Preview</h3>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 md:p-4">
                 {imageUrl && (
-                  <div className="mb-3">
+                  <div className="mb-2 md:mb-3">
                     <img
                       src={imageUrl}
                       alt="Notification"
-                      className="w-full h-32 object-cover rounded-lg"
+                      className="w-full h-24 md:h-32 object-cover rounded-lg"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
                     />
                   </div>
                 )}
-                <div className="font-semibold text-gray-900 mb-1">{title || 'Title'}</div>
-                <div className="text-sm text-gray-700">{body || 'Message body'}</div>
+                <div className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{title || 'Title'}</div>
+                <div className="text-xs md:text-sm text-gray-700">{body || 'Message body'}</div>
               </div>
             </div>
           )}
@@ -260,14 +260,14 @@ export default function NotificationsPage() {
 
         {/* User Selection */}
         {!sendToAll && (
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Select Users</h2>
+          <div className="bg-white rounded-xl shadow-md p-4 md:p-6">
+            <div className="flex justify-between items-center mb-3 md:mb-4">
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Select Users</h2>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 text-xs md:text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
-                <Filter className="w-4 h-4" />
+                <Filter className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 Filters
               </button>
             </div>
@@ -277,13 +277,13 @@ export default function NotificationsPage() {
               placeholder="Search by name, phone, or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none mb-4"
+              className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none mb-3 md:mb-4"
             />
 
             {/* Filters Section */}
             {showFilters && (
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+              <div className="mb-3 md:mb-4 p-3 md:p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <select
                     value={filters.gender || ''}
                     onChange={(e) => setFilters({ ...filters, gender: e.target.value || undefined })}
@@ -328,33 +328,33 @@ export default function NotificationsPage() {
               </div>
             )}
 
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-sm text-gray-600">
+            <div className="mb-3 md:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span className="text-xs md:text-sm text-gray-600">
                 {selectedUserIds.length} of {filteredUsers.length} selected
               </span>
               <button
                 onClick={selectAllUsers}
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                className="text-xs md:text-sm text-primary-600 hover:text-primary-700 font-medium text-left"
               >
                 {selectedUserIds.length === filteredUsers.length ? 'Deselect All' : 'Select All'}
               </button>
             </div>
 
-            <div className="space-y-2 max-h-[500px] overflow-y-auto">
+            <div className="space-y-2 max-h-[300px] md:max-h-[500px] overflow-y-auto">
               {filteredUsers.map((user) => (
                 <div
                   key={user.uid}
-                  className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="flex items-center gap-2 md:gap-3 p-2 md:p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
                 >
                   <input
                     type="checkbox"
                     checked={selectedUserIds.includes(user.uid)}
                     onChange={() => toggleUserSelection(user.uid)}
-                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 cursor-pointer"
+                    className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary-600 rounded focus:ring-primary-500 cursor-pointer flex-shrink-0"
                   />
-                  <User className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                  <User className="w-4 h-4 md:w-5 md:h-5 text-gray-600 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900">
+                    <div className="text-xs md:text-sm font-medium text-gray-900 truncate">
                       {getUserName(user)}
                     </div>
                     <div className="text-xs text-gray-500 truncate">
@@ -363,11 +363,11 @@ export default function NotificationsPage() {
                   </div>
                   <button
                     onClick={() => handleViewProfile(user)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors flex-shrink-0"
+                    className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 text-xs bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors flex-shrink-0"
                     title="View Profile"
                   >
-                    <Eye className="w-3.5 h-3.5" />
-                    View
+                    <Eye className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                    <span className="hidden sm:inline">View</span>
                   </button>
                 </div>
               ))}
@@ -433,39 +433,39 @@ function UserProfileModal({ user, onClose }: { user: UserProfile; onClose: () =>
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">User Profile</h2>
+        <div className="sticky top-0 bg-white border-b px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900">User Profile</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 md:w-6 md:h-6" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6">
           {/* Profile Image */}
           {pictures.length > 0 && (
             <div className="flex justify-center">
               <img
                 src={pictures[0]}
                 alt={getUserName(user)}
-                className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
+                className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-gray-200"
               />
             </div>
           )}
 
           {/* Basic Info */}
           <div className="text-center">
-            <h3 className="text-2xl font-bold text-gray-900">{getUserName(user)}</h3>
-            <p className="text-gray-600">{user.phoneNumber || user.email || 'No contact'}</p>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900">{getUserName(user)}</h3>
+            <p className="text-sm md:text-base text-gray-600">{user.phoneNumber || user.email || 'No contact'}</p>
           </div>
 
           {/* Details Grid */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-4">
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-xs text-gray-600 mb-1">Gender</p>
               <p className="text-sm font-semibold text-gray-900">{getGender(user)}</p>
@@ -545,14 +545,14 @@ function UserProfileModal({ user, onClose }: { user: UserProfile; onClose: () =>
           {/* All Photos */}
           {pictures.length > 1 && (
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">All Photos ({pictures.length})</h4>
-              <div className="grid grid-cols-3 gap-2">
+              <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-2">All Photos ({pictures.length})</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {pictures.map((pic: string, idx: number) => (
                   <img
                     key={idx}
                     src={pic}
                     alt={`Photo ${idx + 1}`}
-                    className="w-full h-32 object-cover rounded-lg"
+                    className="w-full h-24 md:h-32 object-cover rounded-lg"
                   />
                 ))}
               </div>

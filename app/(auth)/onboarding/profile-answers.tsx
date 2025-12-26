@@ -150,7 +150,7 @@ const profileAnswers = () => {
       <Fab
         size="lg"
         onPress={() => {
-          router.push("/onboarding/done");
+          router.push("/(auth)/onboarding/done");
         }}
         style={{ marginBottom: Math.max(insets.bottom, 20) }}
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"

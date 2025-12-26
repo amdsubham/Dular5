@@ -202,7 +202,7 @@ const UserProfileScreen = () => {
               )}
               <Box className="bg-background-100 px-3 py-2 rounded-full">
                 <Text className="font-roboto text-sm">
-                  {profile.distance} km away
+                  {Math.round(profile.distance / 10)} km away
                 </Text>
               </Box>
             </HStack>

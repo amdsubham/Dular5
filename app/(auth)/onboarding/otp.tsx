@@ -196,7 +196,7 @@ export default function Otp() {
 
       if (result.success) {
         console.log('✅ OTP verification successful');
-        router.push("/onboarding/verified");
+        router.push("/(auth)/onboarding/verified");
       } else {
         console.error('❌ OTP verification failed:', result.error);
         Alert.alert("Error", result.error || "Invalid verification code. Please try again.");

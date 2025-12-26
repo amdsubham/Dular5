@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getAllUsers, deleteUser, filterUsers, createUser, updateUser } from '@/services/users';
+import { getAllUsers, deleteUser, filterUsers, createUser, updateUser, getUserSwipeStats } from '@/services/users';
 import { UserProfile, UserFilters } from '@/types/user';
-import { Search, Plus, Edit, Trash2, X, Save, ZoomIn, User as UserIcon, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Save, ZoomIn, User as UserIcon, ChevronLeft, ChevronRight, RefreshCw, Star, Heart, ThumbsUp, ThumbsDown, Activity, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function UsersPage() {
@@ -24,6 +24,8 @@ export default function UsersPage() {
   const [filters, setFilters] = useState<UserFilters>({});
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadingSwipeStats, setLoadingSwipeStats] = useState<{[key: string]: boolean}>({});
+  const [showSwipeStats, setShowSwipeStats] = useState<{[key: string]: boolean}>({});
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -104,6 +106,80 @@ export default function UsersPage() {
     setShowEditModal(true);
   };
 
+  const handleWhatsApp = (user: UserProfile) => {
+    const phoneNumber = user.phoneNumber || '';
+    // Remove any non-digit characters from phone number
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+
+    // Check if phone number exists
+    if (!cleanPhone) {
+      alert('No phone number available for this user');
+      return;
+    }
+
+    // Create WhatsApp message
+    const message = encodeURIComponent('Hi Subham here, We had a match in Dular App');
+
+    // Open WhatsApp with the message
+    // Use international format - add country code if not present
+    const formattedPhone = cleanPhone.startsWith('91') ? cleanPhone : '91' + cleanPhone;
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${message}`;
+
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleRating = async (userId: string, rating: number) => {
+    try {
+      await updateUser(userId, { rating });
+      // Update local state
+      setUsers(users.map(u => u.uid === userId ? { ...u, rating } : u));
+      setFilteredUsers(filteredUsers.map(u => u.uid === userId ? { ...u, rating } : u));
+    } catch (error) {
+      console.error('Error updating rating:', error);
+      alert('Failed to update rating');
+    }
+  };
+
+  const handleToggleSwipeStats = async (userId: string) => {
+    // Toggle visibility
+    const isCurrentlyShowing = showSwipeStats[userId];
+
+    if (isCurrentlyShowing) {
+      // Close the panel
+      setShowSwipeStats(prev => ({ ...prev, [userId]: false }));
+      return;
+    }
+
+    // Open the panel
+    setShowSwipeStats(prev => ({ ...prev, [userId]: true }));
+
+    // Check if already loaded or loading
+    const currentUser = filteredUsers.find(u => u.uid === userId);
+    if (currentUser?.swipeStats || loadingSwipeStats[userId]) {
+      return;
+    }
+
+    // Load stats
+    setLoadingSwipeStats(prev => ({ ...prev, [userId]: true }));
+
+    try {
+      const stats = await getUserSwipeStats(userId);
+
+      // Update both state arrays
+      setUsers(prevUsers =>
+        prevUsers.map(u => u.uid === userId ? { ...u, swipeStats: stats } : u)
+      );
+
+      setFilteredUsers(prevFiltered =>
+        prevFiltered.map(u => u.uid === userId ? { ...u, swipeStats: stats } : u)
+      );
+    } catch (error) {
+      console.error('Error fetching swipe stats:', error);
+    } finally {
+      setLoadingSwipeStats(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
   const handleViewImage = (imageUrl: string) => {
     setSelectedImage(imageUrl);
     setShowImageModal(true);
@@ -171,6 +247,23 @@ export default function UsersPage() {
     return `${firstName} ${lastName}`.trim() || 'N/A';
   };
 
+  const getAge = (user: UserProfile) => {
+    const dob = user.onboarding?.data?.dob || user.dob;
+    if (!dob) return 'N/A';
+    try {
+      const birthDate = dob.toDate ? dob.toDate() : new Date(dob);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    } catch {
+      return 'N/A';
+    }
+  };
+
   // Pagination calculations
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
   const indexOfLastUser = currentPage * usersPerPage;
@@ -200,91 +293,102 @@ export default function UsersPage() {
     return pageNumbers;
   };
 
+
   if (loading) {
     return <div className="text-center py-8">Loading users...</div>;
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Users Management</h1>
-        <div className="flex gap-3">
+    <div className="p-4 md:p-6 lg:p-8">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4 md:mb-6 lg:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Users Management</h1>
+        <div className="flex gap-2 md:gap-3">
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 md:gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 md:px-4 rounded-lg transition-colors disabled:opacity-50 text-sm md:text-base"
             title="Refresh data"
           >
-            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            className="flex items-center gap-1 md:gap-2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-3 md:px-4 rounded-lg transition-colors text-sm md:text-base"
           >
-            <Plus className="w-5 h-5" />
-            Create User
+            <Plus className="w-4 h-4 md:w-5 md:h-5" />
+            <span className="hidden sm:inline">Create User</span>
           </button>
         </div>
       </div>
 
       {/* Stats Bar */}
-      <div className="bg-white rounded-xl shadow-md p-4 mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <div>
-            <span className="text-sm text-gray-600">Total Users: </span>
-            <span className="text-lg font-bold text-gray-900">{users.length}</span>
+      <div className="bg-white rounded-xl shadow-md p-3 md:p-4 mb-4 md:mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-6">
+          <div className="flex flex-wrap items-center gap-3 md:gap-6">
+            <div>
+              <span className="text-xs md:text-sm text-gray-600">Total Users: </span>
+              <span className="text-base md:text-lg font-bold text-gray-900">{users.length}</span>
+            </div>
+            <div>
+              <span className="text-xs md:text-sm text-gray-600">Filtered: </span>
+              <span className="text-base md:text-lg font-bold text-primary-600">{filteredUsers.length}</span>
+            </div>
+            <div>
+              <span className="text-xs md:text-sm text-gray-600">Showing: </span>
+              <span className="text-base md:text-lg font-bold text-gray-900">
+                {indexOfFirstUser + 1}-{Math.min(indexOfLastUser, filteredUsers.length)}
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="text-sm text-gray-600">Filtered: </span>
-            <span className="text-lg font-bold text-primary-600">{filteredUsers.length}</span>
+          <div className="flex items-center gap-2 md:gap-3">
+            <span className="text-xs md:text-sm text-gray-600 whitespace-nowrap">Users per page:</span>
+            <select
+              value={usersPerPage}
+              onChange={(e) => {
+                setUsersPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-2 md:px-3 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            >
+              <option value="6">6</option>
+              <option value="12">12</option>
+              <option value="24">24</option>
+              <option value="48">48</option>
+              <option value="96">96</option>
+            </select>
           </div>
-          <div>
-            <span className="text-sm text-gray-600">Showing: </span>
-            <span className="text-lg font-bold text-gray-900">
-              {indexOfFirstUser + 1}-{Math.min(indexOfLastUser, filteredUsers.length)}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">Users per page:</span>
-          <select
-            value={usersPerPage}
-            onChange={(e) => {
-              setUsersPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-          >
-            <option value="6">6</option>
-            <option value="12">12</option>
-            <option value="24">24</option>
-            <option value="48">48</option>
-            <option value="96">96</option>
-          </select>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="bg-white rounded-xl shadow-md p-4 md:p-6 mb-4 md:mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
           <div className="md:col-span-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 md:w-5 md:h-5" />
               <input
                 type="text"
                 placeholder="Search users..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
               />
             </div>
           </div>
 
           <select
             value={filters.gender || ''}
-            onChange={(e) => setFilters({ ...filters, gender: e.target.value || undefined })}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            onChange={(e) => {
+              const newFilters = { ...filters };
+              if (e.target.value === '') {
+                delete newFilters.gender;
+              } else {
+                newFilters.gender = e.target.value;
+              }
+              setFilters(newFilters);
+            }}
+            className="px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
           >
             <option value="">All Genders</option>
             <option value="male">Male</option>
@@ -311,7 +415,7 @@ export default function UsersPage() {
                 hasDeleteRequest: value === 'deleteRequests'
               });
             }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            className="px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
           >
             <option value="">All Time</option>
             <option value="today">Registered Today</option>
@@ -323,13 +427,13 @@ export default function UsersPage() {
         </div>
 
         {selectedUserIds.length > 0 && (
-          <div className="mt-4 flex items-center gap-4">
-            <span className="text-sm text-gray-600">
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 md:gap-4">
+            <span className="text-xs md:text-sm text-gray-600">
               {selectedUserIds.length} user(s) selected
             </span>
             <button
               onClick={() => setSelectedUserIds([])}
-              className="text-sm text-primary-600 hover:text-primary-700"
+              className="text-xs md:text-sm text-primary-600 hover:text-primary-700 text-left"
             >
               Clear selection
             </button>
@@ -346,9 +450,9 @@ export default function UsersPage() {
                   alert('Failed to delete some users');
                 }
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+              className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-red-600 hover:bg-red-700 text-white text-xs md:text-sm font-medium rounded-lg transition-colors"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Delete Selected ({selectedUserIds.length})
             </button>
           </div>
@@ -356,16 +460,18 @@ export default function UsersPage() {
       </div>
 
       {/* Users Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {currentUsers.map((user) => {
-          const pictures = getPictures(user);
-          const interests = getInterests(user);
-          const interestedIn = getInterestedIn(user);
+          // Get the latest user data with swipeStats from filteredUsers
+          const latestUser = filteredUsers.find(u => u.uid === user.uid) || user;
+          const pictures = getPictures(latestUser);
+          const interests = getInterests(latestUser);
+          const interestedIn = getInterestedIn(latestUser);
 
           return (
-            <div key={user.uid} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+            <div key={latestUser.uid} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
               {/* User Image */}
-              <div className="relative h-64 bg-gray-200">
+              <div className="relative h-48 sm:h-56 md:h-64 bg-gray-200">
                 {pictures.length > 0 ? (
                   <div
                     className="relative h-full cursor-pointer group"
@@ -373,7 +479,7 @@ export default function UsersPage() {
                   >
                     <img
                       src={pictures[0]}
-                      alt={getUserName(user)}
+                      alt={getUserName(latestUser)}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
@@ -403,30 +509,37 @@ export default function UsersPage() {
               </div>
 
               {/* User Info */}
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">
+              <div className="p-4 md:p-6">
+                <div className="flex justify-between items-start mb-3 md:mb-4">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-1 truncate">
                       {getUserName(user)}
                     </h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-xs md:text-sm text-gray-600 truncate">
                       {user.phoneNumber || user.email || 'No contact'}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 md:gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleWhatsApp(latestUser)}
+                      className="text-green-600 hover:text-green-900 p-1.5 md:p-2 hover:bg-green-50 rounded-lg transition-colors"
+                      title="Send WhatsApp message"
+                    >
+                      <MessageCircle className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
                     <button
                       onClick={() => handleEdit(user)}
-                      className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="text-blue-600 hover:text-blue-900 p-1.5 md:p-2 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Edit user"
                     >
-                      <Edit className="w-5 h-5" />
+                      <Edit className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
                     <button
                       onClick={() => handleDelete(user.uid)}
-                      className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                      className="text-red-600 hover:text-red-900 p-1.5 md:p-2 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete user"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
                   </div>
                 </div>
@@ -436,6 +549,10 @@ export default function UsersPage() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Gender:</span>
                     <span className="font-medium text-gray-900">{getGender(user)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Age:</span>
+                    <span className="font-medium text-gray-900">{getAge(user)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Registered:</span>
@@ -471,6 +588,127 @@ export default function UsersPage() {
                   </div>
                 )}
 
+                {/* Profile Rating */}
+                <div className="mb-4 border-t pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-gray-600">Profile Rating:</p>
+                    {user.rating && (
+                      <button
+                        onClick={() => handleRating(user.uid, 0)}
+                        className="text-xs text-red-600 hover:text-red-700 hover:underline"
+                        title="Clear rating"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => handleRating(user.uid, star)}
+                        className="focus:outline-none transition-transform hover:scale-110"
+                        title={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                      >
+                        <Star
+                          className={`w-6 h-6 ${
+                            star <= (user.rating || 0)
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    {user.rating && user.rating > 0 && (
+                      <span className="ml-2 text-sm font-medium text-gray-700">
+                        {user.rating}/5
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Swipe Statistics */}
+                <div className="border-t pt-4">
+                  <button
+                    onClick={() => handleToggleSwipeStats(latestUser.uid)}
+                    className="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-primary-600 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4" />
+                      <span>Swipe Activity</span>
+                    </div>
+                    <ChevronRight className={`w-4 h-4 transition-transform ${showSwipeStats[latestUser.uid] ? 'rotate-90' : ''}`} />
+                  </button>
+
+                  {showSwipeStats[latestUser.uid] && (
+                    <div className="mt-3 space-y-2">
+                      {loadingSwipeStats[latestUser.uid] ? (
+                        <div className="flex items-center justify-center py-6">
+                          <RefreshCw className="w-5 h-5 animate-spin text-primary-600" />
+                          <span className="ml-2 text-sm text-gray-600">Loading...</span>
+                        </div>
+                      ) : latestUser.swipeStats ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-blue-50 rounded-lg p-2.5">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <Heart className="w-3.5 h-3.5 text-blue-600" />
+                                <span className="text-xs text-gray-600">Total</span>
+                              </div>
+                              <p className="text-xl font-bold text-blue-600">
+                                {latestUser.swipeStats.totalSwipes}
+                              </p>
+                            </div>
+                            <div className="bg-green-50 rounded-lg p-2.5">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <Activity className="w-3.5 h-3.5 text-green-600" />
+                                <span className="text-xs text-gray-600">Today</span>
+                              </div>
+                              <p className="text-xl font-bold text-green-600">
+                                {latestUser.swipeStats.todaySwipes}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-emerald-50 rounded-lg p-2.5">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <ThumbsUp className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-xs text-gray-600">Likes</span>
+                              </div>
+                              <p className="text-lg font-bold text-emerald-600">
+                                {latestUser.swipeStats.rightSwipes}
+                              </p>
+                            </div>
+                            <div className="bg-red-50 rounded-lg p-2.5">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <ThumbsDown className="w-3.5 h-3.5 text-red-600" />
+                                <span className="text-xs text-gray-600">Passes</span>
+                              </div>
+                              <p className="text-lg font-bold text-red-600">
+                                {latestUser.swipeStats.leftSwipes}
+                              </p>
+                            </div>
+                          </div>
+                          {latestUser.swipeStats.lastSwipeDate && (
+                            <div className="text-xs text-gray-500 text-center pt-1.5 border-t">
+                              Last: {format(latestUser.swipeStats.lastSwipeDate, 'MMM dd, HH:mm')}
+                            </div>
+                          )}
+                          {latestUser.swipeStats.totalSwipes === 0 && (
+                            <div className="text-xs text-gray-500 text-center pt-1.5">
+                              No swipes yet
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-center py-4 text-sm text-gray-500">
+                          No data available
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Status Badge */}
                 <div className="mt-4">
                   {user.userAskedToDelete === 'yes' ? (
@@ -491,12 +729,12 @@ export default function UsersPage() {
 
       {/* Pagination Controls */}
       {filteredUsers.length > 0 && totalPages > 1 && (
-        <div className="mt-8 flex items-center justify-center gap-2">
+        <div className="mt-6 md:mt-8 flex flex-wrap items-center justify-center gap-1.5 md:gap-2">
           {/* First Page */}
           <button
             onClick={() => paginate(1)}
             disabled={currentPage === 1}
-            className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-2 md:px-3 py-1.5 md:py-2 text-sm md:text-base rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="First page"
           >
             «
@@ -506,19 +744,20 @@ export default function UsersPage() {
           <button
             onClick={() => paginate(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            className="px-2 md:px-4 py-1.5 md:py-2 text-sm md:text-base rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1 md:gap-2"
           >
-            <ChevronLeft className="w-4 h-4" />
-            Previous
+            <ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
+            <span className="hidden sm:inline">Previous</span>
+            <span className="sm:hidden">Prev</span>
           </button>
 
           {/* Page Numbers */}
-          <div className="flex gap-2">
+          <div className="flex gap-1 md:gap-2">
             {getPageNumbers().map((number) => (
               <button
                 key={number}
                 onClick={() => paginate(number)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-2.5 md:px-4 py-1.5 md:py-2 text-sm md:text-base rounded-lg font-medium transition-colors ${
                   currentPage === number
                     ? 'bg-primary-600 text-white'
                     : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -533,17 +772,17 @@ export default function UsersPage() {
           <button
             onClick={() => paginate(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            className="px-2 md:px-4 py-1.5 md:py-2 text-sm md:text-base rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1 md:gap-2"
           >
-            Next
-            <ChevronRight className="w-4 h-4" />
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
           </button>
 
           {/* Last Page */}
           <button
             onClick={() => paginate(totalPages)}
             disabled={currentPage === totalPages}
-            className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-2 md:px-3 py-1.5 md:py-2 text-sm md:text-base rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Last page"
           >
             »
@@ -560,22 +799,24 @@ export default function UsersPage() {
 
       {/* Bulk Selection Bar */}
       {selectedUserIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 z-40">
-          <span className="font-medium">
+        <div className="fixed bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 md:px-6 py-3 md:py-4 rounded-full shadow-2xl flex flex-col sm:flex-row items-center gap-3 md:gap-6 z-40 max-w-[90vw] sm:max-w-none">
+          <span className="font-medium text-sm md:text-base text-center sm:text-left">
             {selectedUserIds.length} user{selectedUserIds.length > 1 ? 's' : ''} selected
           </span>
-          <button
-            onClick={selectAllUsers}
-            className="px-4 py-2 bg-white text-gray-900 rounded-full text-sm font-medium hover:bg-gray-100 transition-colors"
-          >
-            {selectedUserIds.length === filteredUsers.length ? 'Deselect All' : 'Select All'}
-          </button>
-          <button
-            onClick={() => setSelectedUserIds([])}
-            className="px-4 py-2 bg-red-600 text-white rounded-full text-sm font-medium hover:bg-red-700 transition-colors"
-          >
-            Clear
-          </button>
+          <div className="flex gap-2 md:gap-3">
+            <button
+              onClick={selectAllUsers}
+              className="px-3 md:px-4 py-1.5 md:py-2 bg-white text-gray-900 rounded-full text-xs md:text-sm font-medium hover:bg-gray-100 transition-colors whitespace-nowrap"
+            >
+              {selectedUserIds.length === filteredUsers.length ? 'Deselect All' : 'Select All'}
+            </button>
+            <button
+              onClick={() => setSelectedUserIds([])}
+              className="px-3 md:px-4 py-1.5 md:py-2 bg-red-600 text-white rounded-full text-xs md:text-sm font-medium hover:bg-red-700 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
         </div>
       )}
 
@@ -690,13 +931,13 @@ function ImageGalleryModal({
       {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 text-white hover:text-gray-300 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-3 transition-all z-10"
+        className="absolute top-2 md:top-4 right-2 md:right-4 text-white hover:text-gray-300 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-2 md:p-3 transition-all z-10"
       >
-        <X className="w-8 h-8" />
+        <X className="w-6 h-6 md:w-8 md:h-8" />
       </button>
 
       {/* Image counter */}
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-4 py-2 rounded-full font-medium z-10">
+      <div className="absolute top-2 md:top-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-3 md:px-4 py-1.5 md:py-2 rounded-full font-medium z-10 text-sm md:text-base">
         {currentIndex + 1} of {images.length}
       </div>
 
@@ -707,9 +948,9 @@ function ImageGalleryModal({
             e.stopPropagation();
             goToPrevious();
           }}
-          className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-4 transition-all z-10"
+          className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-2 md:p-4 transition-all z-10"
         >
-          <ChevronLeft className="w-8 h-8" />
+          <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
         </button>
       )}
 
@@ -717,7 +958,7 @@ function ImageGalleryModal({
       <img
         src={images[currentIndex]}
         alt={`Image ${currentIndex + 1}`}
-        className="max-w-full max-h-[85vh] object-contain rounded-lg"
+        className="max-w-full max-h-[70vh] md:max-h-[85vh] object-contain rounded-lg"
         onClick={(e) => e.stopPropagation()}
       />
 
@@ -728,19 +969,19 @@ function ImageGalleryModal({
             e.stopPropagation();
             goToNext();
           }}
-          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-4 transition-all z-10"
+          className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-2 md:p-4 transition-all z-10"
         >
-          <ChevronRight className="w-8 h-8" />
+          <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
         </button>
       )}
 
       {/* Thumbnails at bottom */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 max-w-full overflow-x-auto px-4 py-2 bg-black bg-opacity-50 rounded-full" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 flex gap-1.5 md:gap-2 max-w-full overflow-x-auto px-2 md:px-4 py-1.5 md:py-2 bg-black bg-opacity-50 rounded-full" onClick={(e) => e.stopPropagation()}>
         {images.map((img, idx) => (
           <button
             key={idx}
             onClick={() => onIndexChange(idx)}
-            className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+            className={`flex-shrink-0 w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden border-2 transition-all ${
               idx === currentIndex ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-100'
             }`}
           >
@@ -890,21 +1131,21 @@ function UserModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
+      <div className="bg-white rounded-xl shadow-2xl p-4 md:p-6 lg:p-8 w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4 md:mb-6">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900">
             {user ? 'Edit User' : 'Create User'}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 md:w-6 md:h-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
           {/* Basic Information */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Basic Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   First Name *
@@ -934,8 +1175,8 @@ function UserModal({
 
           {/* Contact Information */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Contact Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email
@@ -965,8 +1206,8 @@ function UserModal({
 
           {/* Personal Details */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Details</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Personal Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Gender
@@ -999,7 +1240,7 @@ function UserModal({
 
           {/* Interested In */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Interested In</h3>
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Interested In</h3>
             <div className="flex gap-2 mb-2">
               <input
                 type="text"
@@ -1040,7 +1281,7 @@ function UserModal({
 
           {/* Looking For */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Looking For</h3>
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Looking For</h3>
             <div className="flex gap-2 mb-2">
               <input
                 type="text"
@@ -1081,7 +1322,7 @@ function UserModal({
 
           {/* Interests */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Interests</h3>
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Interests</h3>
             <div className="flex gap-2 mb-2">
               <input
                 type="text"
@@ -1121,20 +1362,20 @@ function UserModal({
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-4 mt-6 pt-6 border-t">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 md:gap-4 mt-4 md:mt-6 pt-4 md:pt-6 border-t">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-4 md:px-6 py-2 text-sm md:text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-4 md:px-6 py-2 text-sm md:text-base bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50"
             >
-              <Save className="w-5 h-5" />
+              <Save className="w-4 h-4 md:w-5 md:h-5" />
               {saving ? 'Saving...' : 'Save User'}
             </button>
           </div>

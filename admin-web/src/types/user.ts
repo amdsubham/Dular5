@@ -1,3 +1,11 @@
+export interface SwipeStats {
+  totalSwipes: number;
+  todaySwipes: number;
+  rightSwipes: number;
+  leftSwipes: number;
+  lastSwipeDate: Date | null;
+}
+
 export interface UserProfile {
   uid: string;
   phoneNumber?: string;
@@ -28,6 +36,8 @@ export interface UserProfile {
   deleteRequestedAt?: any;
   fcmToken?: string;
   deviceTokens?: string[];
+  rating?: number; // Admin rating for profile (1-5)
+  swipeStats?: SwipeStats; // Swipe statistics for the user
 }
 
 export interface UserFilters {

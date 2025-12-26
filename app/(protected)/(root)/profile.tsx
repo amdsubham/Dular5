@@ -117,7 +117,7 @@ function ProfileCard() {
             size="sm"
             variant="outline"
             className="self-start border-background-300"
-            onPress={() => router.push("/edit-profile")}
+            onPress={() => router.push("/(protected)/edit-profile")}
           >
             <ButtonIcon as={EditIcon} className="text-typography-700 mr-1" size="xs" />
             <ButtonText className="text-typography-950 font-roboto text-sm">
@@ -132,101 +132,182 @@ function ProfileCard() {
 
 function ActiveSubscriptionCard() {
   const router = useRouter();
-  const { subscription, swipesRemaining, daysRemaining } = useSubscription();
+  const { subscription, swipesRemaining, daysRemaining, swipesLimit, subscriptionEnabled } = useSubscription();
 
+  // Hide subscription cards when feature is disabled
+  if (!subscriptionEnabled) return null;
   if (!subscription) return null;
 
-  const planDisplayName = subscription.planName || subscription.currentPlan?.toUpperCase() || "Premium";
+  const currentPlan = subscription.currentPlan || "daily";
+  const planDisplayName = currentPlan === "daily"
+    ? "Daily Plan"
+    : currentPlan === "weekly"
+    ? "Weekly Plan"
+    : currentPlan === "monthly"
+    ? "Monthly Plan"
+    : subscription.planName || currentPlan.toUpperCase();
+
+  // Always show Monthly Plan as upgrade option (unless user is already on monthly)
+  const nextPlan = currentPlan !== "monthly"
+    ? {
+        name: "Monthly Plan",
+        price: "₹500",
+        savings: "Best Value",
+        features: ["Unlimited swipes", "Priority matching", "See all likes"]
+      }
+    : null;
+
+  // Get plan-specific swipes limit
+  const swipesText = currentPlan === "monthly"
+    ? "Unlimited swipes"
+    : swipesLimit === 999999
+    ? "Unlimited swipes"
+    : `${swipesLimit} swipes per day`;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={() => router.push("/subscription")}
-      className="mt-6 mb-4"
-    >
-      <LinearGradient
-        colors={["#4CAF50", "#2E7D32", "#1B5E20"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ borderRadius: 20, padding: 20 }}
+    <VStack className="mt-6 mb-4 gap-4">
+      {/* Current Active Plan Card */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => router.push("/(protected)/subscription")}
       >
-        <VStack className="gap-4">
-          {/* Header with Crown Icon */}
-          <HStack className="items-center justify-between">
-            <HStack className="items-center gap-3">
-              <Box className="bg-white/20 rounded-full p-3">
-                <Icon as={Crown} className="w-7 h-7 text-yellow-300" />
-              </Box>
-              <VStack className="gap-1">
-                <Heading size="xl" className="text-white font-satoshi font-bold">
-                  {planDisplayName} Active
-                </Heading>
-                <Text className="text-white/90 text-sm font-roboto">
-                  {daysRemaining > 0 ? `${daysRemaining} days remaining` : "Enjoy your benefits"}
-                </Text>
-              </VStack>
-            </HStack>
-            <Icon as={Sparkles} className="w-6 h-6 text-yellow-300" />
-          </HStack>
-
-          {/* Active Features */}
-          <VStack className="gap-2.5">
-            <HStack className="items-center gap-2">
-              <Box className="w-5 h-5 rounded-full bg-white/25 items-center justify-center">
-                <Text className="text-yellow-300 text-xs font-bold">✓</Text>
-              </Box>
-              <Text className="text-white text-sm font-roboto">
-                Unlimited daily swipes
-              </Text>
-            </HStack>
-            <HStack className="items-center gap-2">
-              <Box className="w-5 h-5 rounded-full bg-white/25 items-center justify-center">
-                <Text className="text-yellow-300 text-xs font-bold">✓</Text>
-              </Box>
-              <Text className="text-white text-sm font-roboto">
-                See who likes you
-              </Text>
-            </HStack>
-            <HStack className="items-center gap-2">
-              <Box className="w-5 h-5 rounded-full bg-white/25 items-center justify-center">
-                <Text className="text-yellow-300 text-xs font-bold">✓</Text>
-              </Box>
-              <Text className="text-white text-sm font-roboto">
-                Priority matching & profile boost
-              </Text>
-            </HStack>
-          </VStack>
-
-          {/* Swipe Status */}
-          <Box className="bg-white/15 rounded-xl p-3 border border-white/20">
+        <LinearGradient
+          colors={["#4CAF50", "#2E7D32", "#1B5E20"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ borderRadius: 20, padding: 20 }}
+        >
+          <VStack className="gap-4">
+            {/* Header with Crown Icon */}
             <HStack className="items-center justify-between">
-              <VStack className="gap-1">
-                <Text className="text-white/80 text-xs font-roboto">
-                  Today's Swipes
-                </Text>
-                <Text className="text-white font-bold text-lg font-roboto">
-                  {swipesRemaining} remaining
-                </Text>
-              </VStack>
-              <Icon as={Zap} className="w-8 h-8 text-yellow-300" />
+              <HStack className="items-center gap-3">
+                <Box className="bg-white/20 rounded-full p-3">
+                  <Icon as={Crown} className="w-7 h-7 text-yellow-300" />
+                </Box>
+                <VStack className="gap-1">
+                  <Heading size="xl" className="text-white font-satoshi font-bold">
+                    {planDisplayName} Active
+                  </Heading>
+                  <Text className="text-white/90 text-sm font-roboto">
+                    {daysRemaining > 0 ? `${daysRemaining} days remaining` : "Enjoy your benefits"}
+                  </Text>
+                </VStack>
+              </HStack>
+              <Icon as={Sparkles} className="w-6 h-6 text-yellow-300" />
             </HStack>
-          </Box>
 
-          {/* Manage Button */}
-          <Box className="bg-white/10 rounded-xl py-3 items-center border border-white/20">
-            <Text className="text-white font-semibold text-sm font-roboto">
-              Tap to Manage Subscription
-            </Text>
-          </Box>
-        </VStack>
-      </LinearGradient>
-    </TouchableOpacity>
+            {/* Active Features */}
+            <VStack className="gap-2.5">
+              <HStack className="items-center gap-2">
+                <Box className="w-5 h-5 rounded-full bg-white/25 items-center justify-center">
+                  <Text className="text-yellow-300 text-xs font-bold">✓</Text>
+                </Box>
+                <Text className="text-white text-sm font-roboto">
+                  {swipesText}
+                </Text>
+              </HStack>
+              <HStack className="items-center gap-2">
+                <Box className="w-5 h-5 rounded-full bg-white/25 items-center justify-center">
+                  <Text className="text-yellow-300 text-xs font-bold">✓</Text>
+                </Box>
+                <Text className="text-white text-sm font-roboto">
+                  See who likes you
+                </Text>
+              </HStack>
+              <HStack className="items-center gap-2">
+                <Box className="w-5 h-5 rounded-full bg-white/25 items-center justify-center">
+                  <Text className="text-yellow-300 text-xs font-bold">✓</Text>
+                </Box>
+                <Text className="text-white text-sm font-roboto">
+                  Priority matching & profile boost
+                </Text>
+              </HStack>
+            </VStack>
+
+            {/* Swipe Status */}
+            <Box className="bg-white/15 rounded-xl p-3 border border-white/20">
+              <HStack className="items-center justify-between">
+                <VStack className="gap-1">
+                  <Text className="text-white/80 text-xs font-roboto">
+                    Today's Swipes
+                  </Text>
+                  <Text className="text-white font-bold text-lg font-roboto">
+                    {swipesRemaining === 999999 ? "Unlimited" : `${swipesRemaining} remaining`}
+                  </Text>
+                </VStack>
+                <Icon as={Zap} className="w-8 h-8 text-yellow-300" />
+              </HStack>
+            </Box>
+
+            {/* Manage Button */}
+            <Box className="bg-white/10 rounded-xl py-3 items-center border border-white/20">
+              <Text className="text-white font-semibold text-sm font-roboto">
+                Tap to Manage Subscription
+              </Text>
+            </Box>
+          </VStack>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* Upgrade to Monthly Plan Card (only if not on monthly) */}
+      {nextPlan && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push("/(protected)/subscription")}
+        >
+          <LinearGradient
+            colors={["#FF6B9D", "#C239B3", "#8B3A9F"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ borderRadius: 20, padding: 20 }}
+          >
+            <VStack className="gap-4">
+              {/* Header */}
+              <HStack className="items-center justify-between">
+                <VStack className="gap-1 flex-1">
+                  <Heading size="xl" className="text-white font-satoshi font-bold">
+                    Upgrade to {nextPlan.name}
+                  </Heading>
+                  <Text className="text-white/90 text-sm font-roboto">
+                    {nextPlan.savings} • {nextPlan.price}/month
+                  </Text>
+                </VStack>
+                <Box className="bg-white/20 rounded-full p-3">
+                  <Icon as={Crown} className="w-6 h-6 text-yellow-300" />
+                </Box>
+              </HStack>
+
+              {/* Features */}
+              <VStack className="gap-2.5">
+                {nextPlan.features.map((feature, index) => (
+                  <HStack key={index} className="items-center gap-2">
+                    <Box className="w-5 h-5 rounded-full bg-white/25 items-center justify-center">
+                      <Text className="text-yellow-300 text-xs font-bold">✓</Text>
+                    </Box>
+                    <Text className="text-white text-sm font-roboto">
+                      {feature}
+                    </Text>
+                  </HStack>
+                ))}
+              </VStack>
+
+              {/* Upgrade Button */}
+              <Box className="bg-white/10 rounded-xl py-3 items-center border border-white/20">
+                <Text className="text-white font-semibold text-sm font-roboto">
+                  Tap to Upgrade Now →
+                </Text>
+              </Box>
+            </VStack>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+    </VStack>
   );
 }
 
 function PremiumUpgradeCard() {
   const router = useRouter();
-  const { isPremium, subscription, swipesRemaining, swipesLimit, loading } = useSubscription();
+  const { isPremium, subscription, swipesRemaining, swipesLimit, loading, subscriptionEnabled } = useSubscription();
 
   // Debug: Log subscription status
   console.log("🔍 PremiumUpgradeCard - Subscription Status:", {
@@ -240,7 +321,11 @@ function PremiumUpgradeCard() {
     } : null,
     swipesLimit,
     swipesRemaining,
+    subscriptionEnabled,
   });
+
+  // Hide upgrade card when subscriptions are disabled
+  if (!subscriptionEnabled) return null;
 
   // Show nothing while loading
   if (loading) {
@@ -380,7 +465,7 @@ function ProfileOptions() {
     <Box className="flex-col gap-y-2 mt-6 py-2">
       <Pressable
         className="flex-row gap-x-3 items-center w-full data-[active=true]:bg-background-50/50 rounded-lg py-3 px-2"
-        onPress={() => router.push("/settings")}
+        onPress={() => router.push("/(protected)/settings")}
       >
         <Box className="bg-background-50 rounded-lg h-9 w-9 flex items-center justify-center">
           <Icon as={SettingsIcon} className="w-5 h-5 text-typography-700" />
@@ -393,7 +478,7 @@ function ProfileOptions() {
 
       <Pressable
         className="flex-row gap-x-3 items-center w-full data-[active=true]:bg-background-50/50 rounded-lg py-3 px-2"
-        onPress={() => router.push("/help-center")}
+        onPress={() => router.push("/(protected)/help-center")}
       >
         <Box className="bg-background-50 rounded-lg h-9 w-9 flex items-center justify-center">
           <Icon as={HelpCenterIcon} className="w-5 h-5 text-typography-700" />

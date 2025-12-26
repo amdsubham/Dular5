@@ -60,12 +60,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   /**
    * Poll subscription status to check if webhook has activated subscription
+   * Uses exponential backoff for better UX - checks more frequently at first
    */
-  const checkSubscriptionActivation = async (maxAttempts = 10): Promise<boolean> => {
+  const checkSubscriptionActivation = async (maxAttempts = 25): Promise<boolean> => {
     const currentUser = auth.currentUser;
-    if (!currentUser) return false;
+    if (!currentUser) {
+      console.error("❌ No current user found!");
+      return false;
+    }
 
-    console.log("🔍 Checking subscription activation...");
+    console.log("🔍 Checking subscription activation with smart polling...");
+    console.log(`   • User ID: ${currentUser.uid}`);
+    console.log(`   • Looking for plan: ${plan.id}`);
+    console.log(`   • User phone: ${currentUser.phoneNumber || 'N/A'}`);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -73,26 +80,68 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         if (subscriptionDoc.exists()) {
           const data = subscriptionDoc.data();
+
+          console.log(`📊 Attempt ${attempt}/${maxAttempts}:`);
+          console.log(`   • Document ID: ${subscriptionDoc.id}`);
+          console.log(`   • Current Plan: ${data.currentPlan}`);
+          console.log(`   • Target Plan: ${plan.id}`);
+          console.log(`   • Is Active: ${data.isActive}`);
+          console.log(`   • Is Premium: ${data.isPremium}`);
+          console.log(`   • Swipe Limit: ${data.swipesLimit}`);
+          console.log(`   • Updated At: ${data.updatedAt?.toDate?.()}`);
+
+          // Check if this is the plan we're looking for
           const isActivePlan = data.currentPlan === plan.id && data.isActive === true;
 
-          console.log(`📊 Attempt ${attempt}/${maxAttempts}: Plan=${data.currentPlan}, Active=${data.isActive}`);
+          // FALLBACK: Also accept if isPremium is true and swipesLimit matches expected
+          // This handles cases where plan ID might not match exactly
+          const expectedSwipeLimit = plan.swipeLimit;
+          const isPremiumMatch = data.isPremium === true &&
+                                 data.isActive === true &&
+                                 data.swipesLimit === expectedSwipeLimit;
 
-          if (isActivePlan) {
+          console.log(`   • Plan Match: ${isActivePlan}`);
+          console.log(`   • Premium Match (fallback): ${isPremiumMatch}`);
+
+          if (isActivePlan || isPremiumMatch) {
             console.log("✅ Subscription activated!");
+            console.log(`   • Plan: ${data.currentPlan}`);
+            console.log(`   • Swipe Limit: ${data.swipesLimit}`);
+            console.log(`   • Swipes Used Today: ${data.swipesUsedToday}`);
+            console.log(`   • Method: ${isActivePlan ? 'Plan ID match' : 'Premium + Swipe limit match'}`);
             return true;
           }
+        } else {
+          console.log(`📊 Attempt ${attempt}/${maxAttempts}: Subscription document does not exist yet for user ${currentUser.uid}`);
         }
 
-        // Wait 2 seconds before next check
+        // Smart polling with exponential backoff:
+        // First 5 attempts: check every 1 second (fast checks for quick webhooks)
+        // Next 10 attempts: check every 2 seconds (normal speed)
+        // Remaining attempts: check every 3 seconds (slower, for edge cases)
         if (attempt < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          let waitTime: number;
+          if (attempt <= 5) {
+            waitTime = 1000; // 1 second for first 5 attempts
+          } else if (attempt <= 15) {
+            waitTime = 2000; // 2 seconds for next 10 attempts
+          } else {
+            waitTime = 3000; // 3 seconds for remaining attempts
+          }
+
+          console.log(`⏳ Waiting ${waitTime}ms before next check...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
         }
       } catch (error) {
         console.error(`❌ Error checking subscription (attempt ${attempt}):`, error);
+        // Continue trying even if there's an error
       }
     }
 
-    console.log("⏰ Subscription check timed out");
+    const totalTime = (5 * 1) + (10 * 2) + (10 * 3); // ~55 seconds total
+    console.log("⏰ Subscription check timed out after ~", totalTime, "seconds");
+    console.log(`   • Final user ID checked: ${currentUser.uid}`);
+    console.log(`   • Please verify this matches the user ID in Firestore`);
     return false;
   };
 
@@ -139,11 +188,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       setVerifyingPayment(true);
       setShowWebView(false);
 
-      // Wait a moment for webhook to process
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Poll subscription status
-      const isActivated = await checkSubscriptionActivation(10); // Check for 20 seconds (10 attempts x 2 seconds)
+      // Start checking immediately with smart polling
+      // No initial wait - webhook might be fast, so start checking right away
+      console.log("🔄 Starting smart subscription activation polling...");
+      console.log("   • First 5 checks: every 1 second (for fast webhooks)");
+      console.log("   • Next 10 checks: every 2 seconds (normal speed)");
+      console.log("   • Final 10 checks: every 3 seconds (for slow webhooks)");
+      const isActivated = await checkSubscriptionActivation(25);
 
       setVerifyingPayment(false);
 
@@ -151,7 +202,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         console.log("💡 Subscription activated successfully!");
         onSuccess();
       } else {
-        console.log("⚠️ Subscription not activated yet");
+        console.log("⚠️ Subscription not activated yet after ~55 seconds");
         Alert.alert(
           "Payment Processing",
           "Your payment was received but subscription activation is taking longer than expected. Please check back in a few moments or contact support if the issue persists.",
@@ -159,8 +210,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             {
               text: "Check Again",
               onPress: async () => {
+                console.log("🔄 User requested to check subscription status again...");
                 setVerifyingPayment(true);
-                const retry = await checkSubscriptionActivation(10);
+                const retry = await checkSubscriptionActivation(25);
                 setVerifyingPayment(false);
                 if (retry) {
                   onSuccess();
@@ -216,8 +268,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         onPress: async () => {
                           setShowWebView(false);
                           setVerifyingPayment(true);
-                          await new Promise(resolve => setTimeout(resolve, 2000));
-                          const isActivated = await checkSubscriptionActivation(10);
+                          console.log("🔄 User manually checking status with smart polling...");
+                          const isActivated = await checkSubscriptionActivation(25);
                           setVerifyingPayment(false);
                           if (isActivated) {
                             onSuccess();
@@ -291,6 +343,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </Text>
             <Text className="text-typography-600 text-sm font-roboto text-center mt-2">
               Please wait while we confirm your payment and activate your subscription...
+            </Text>
+            <Text className="text-typography-500 text-xs font-roboto text-center mt-3">
+              This usually takes 10-15 seconds
             </Text>
           </AnimatedBox>
         </Box>

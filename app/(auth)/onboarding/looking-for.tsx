@@ -29,7 +29,7 @@ const lookingFor = () => {
       await updateOnboardingProgress("looking-for", {
         lookingFor: values,
       });
-      router.push("/onboarding/pictures");
+      router.push("/(auth)/onboarding/pictures");
     }
   };
 

@@ -29,7 +29,7 @@ const interest = () => {
       await updateOnboardingProgress("interest", {
         interestedIn: values,
       });
-      router.push("/onboarding/looking-for");
+      router.push("/(auth)/onboarding/looking-for");
     }
   };
 

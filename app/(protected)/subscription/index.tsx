@@ -109,12 +109,15 @@ export default function SubscriptionPage() {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = async () => {
+    console.log("✅ handlePaymentSuccess called");
     setShowPaymentModal(false);
     setSelectedPlan(null);
 
-    // Refresh subscription data
-    refreshSubscription();
+    // Refresh subscription data to ensure UI updates
+    console.log("🔄 Refreshing subscription data after successful payment...");
+    await refreshSubscription();
+    console.log("✅ Subscription data refreshed");
 
     // Show success message
     Alert.alert(
