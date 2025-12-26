@@ -21,7 +21,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSubscription } from "@/hooks/useSubscription";
 import { VStack } from "@/components/ui/vstack";
 import { HStack } from "@/components/ui/hstack";
-import { analytics } from "@/services/analytics";
 
 function Header() {
   return (
@@ -72,7 +71,7 @@ function ProfileCard() {
   const age = profile?.dob ? calculateAge(profile.dob) : null;
   const displayName = age ? `${fullName || "User"}, ${age}` : fullName || "User";
   const mainProfilePicture = profile?.pictures?.[0] || null;
-  const planDisplayName = subscription?.currentPlan?.toUpperCase() || "Premium";
+  const planDisplayName = subscription?.planName || subscription?.currentPlan?.toUpperCase() || "Premium";
 
   return (
     <Box className="bg-background-50 rounded-2xl p-5 mt-6">
@@ -118,13 +117,7 @@ function ProfileCard() {
             size="sm"
             variant="outline"
             className="self-start border-background-300"
-            onPress={() => {
-              analytics.track("edit_profile_clicked", {
-                from_screen: "profile",
-                is_premium: isPremium,
-              });
-              router.push("/(protected)/edit-profile");
-            }}
+            onPress={() => router.push("/(protected)/edit-profile")}
           >
             <ButtonIcon as={EditIcon} className="text-typography-700 mr-1" size="xs" />
             <ButtonText className="text-typography-950 font-roboto text-sm">
@@ -152,7 +145,7 @@ function ActiveSubscriptionCard() {
     ? "Weekly Plan"
     : currentPlan === "monthly"
     ? "Monthly Plan"
-    : currentPlan.toUpperCase();
+    : subscription.planName || currentPlan.toUpperCase();
 
   // Always show Monthly Plan as upgrade option (unless user is already on monthly)
   const nextPlan = currentPlan !== "monthly"
@@ -165,42 +158,18 @@ function ActiveSubscriptionCard() {
     : null;
 
   // Get plan-specific swipes limit
-  // Handle cases where swipesLimit might be undefined, null, or 0
-  // For weekly plan, default to 100 swipes if not set
-  // For daily plan, default to 50 swipes if not set
-  let effectiveSwipesLimit = swipesLimit || 0;
-
-  // Apply plan-specific defaults if swipesLimit is missing or 0
-  if (effectiveSwipesLimit === 0) {
-    if (currentPlan === "weekly") {
-      effectiveSwipesLimit = 100;
-    } else if (currentPlan === "daily") {
-      effectiveSwipesLimit = 50;
-    }
-  }
-
   const swipesText = currentPlan === "monthly"
     ? "Unlimited swipes"
-    : effectiveSwipesLimit === 999999 || effectiveSwipesLimit === -1
+    : swipesLimit === 999999
     ? "Unlimited swipes"
-    : effectiveSwipesLimit > 0
-    ? `${effectiveSwipesLimit} swipes per day`
-    : "Swipes per day";
+    : `${swipesLimit} swipes per day`;
 
   return (
     <VStack className="mt-6 mb-4 gap-4">
       {/* Current Active Plan Card */}
       <TouchableOpacity
         activeOpacity={0.8}
-        onPress={() => {
-          analytics.track("subscription_card_clicked", {
-            from_screen: "profile",
-            current_plan: currentPlan,
-            swipes_remaining: swipesRemaining,
-            days_remaining: daysRemaining,
-          });
-          router.push("/(protected)/subscription");
-        }}
+        onPress={() => router.push("/(protected)/subscription")}
       >
         <LinearGradient
           colors={["#4CAF50", "#2E7D32", "#1B5E20"]}
@@ -346,9 +315,9 @@ function PremiumUpgradeCard() {
     isPremium,
     subscription: subscription ? {
       currentPlan: subscription.currentPlan,
+      planName: subscription.planName,
       isActive: subscription.isActive,
       isPremium: subscription.isPremium,
-      swipesLimit: subscription.swipesLimit,
     } : null,
     swipesLimit,
     swipesRemaining,
@@ -467,11 +436,6 @@ function ProfileOptions() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    // Track logout attempt
-    analytics.track("logout_clicked", {
-      from_screen: "profile",
-    });
-
     Alert.alert(
       "Logout",
       "Are you sure you want to logout?",
@@ -479,17 +443,12 @@ function ProfileOptions() {
         {
           text: "Cancel",
           style: "cancel",
-          onPress: () => {
-            analytics.track("logout_cancelled");
-          },
         },
         {
           text: "Logout",
           style: "destructive",
           onPress: async () => {
             try {
-              // Track logout without importing auth to avoid type issues
-              await analytics.track("user_logged_out", {});
               await signOut();
               router.replace("/(auth)");
             } catch (error) {

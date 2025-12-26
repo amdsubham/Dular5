@@ -5,7 +5,7 @@
  * Webhook handles payment confirmation automatically.
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { Modal, ActivityIndicator, Alert } from "react-native";
 import { WebView } from "react-native-webview";
 import { Box } from "@/components/ui/box";
@@ -56,25 +56,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const webViewRef = useRef<WebView>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debug logging for modal rendering
-  console.log("🎭 PaymentModal render - visible:", visible, "plan:", plan?.id, "showWebView:", showWebView, "verifying:", verifyingPayment);
-
-  // Log when modal visibility changes
-  useEffect(() => {
-    if (visible) {
-      console.log("👁️ PaymentModal became VISIBLE");
-      console.log("  • Plan:", plan?.displayName);
-      console.log("  • Plan ID:", plan?.id);
-      console.log("  • Platform:", require('react-native').Platform.OS);
-    } else {
-      console.log("🙈 PaymentModal became HIDDEN");
-    }
-  }, [visible, plan]);
-
-  if (!plan) {
-    console.log("⚠️ PaymentModal - No plan provided, returning null");
-    return null;
-  }
+  if (!plan) return null;
 
   /**
    * Poll subscription status to check if webhook has activated subscription
@@ -163,105 +145,33 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     return false;
   };
 
-  const handlePayment = async () => {
+  const handlePayment = () => {
     console.log("💳 Pay button clicked!");
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("🚀 PAYMENT FLOW STARTED");
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     try {
       setProcessing(true);
 
-      console.log("📋 Payment Details:");
-      console.log("   • Plan ID:", plan.id);
-      console.log("   • Plan Name:", plan.displayName);
-      console.log("   • Plan Price:", plan.price);
+      console.log("🚀 Starting Instamojo payment for plan:", plan.id);
 
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        console.error("❌ CRITICAL: User not authenticated!");
         throw new Error("User not authenticated");
       }
 
-      console.log("👤 User Details:");
-      console.log("   • User ID:", currentUser.uid);
-      console.log("   • Email:", currentUser.email);
-      console.log("   • Phone:", currentUser.phoneNumber);
-
-      // CRITICAL: Create transaction BEFORE opening payment link
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-      console.log("📝 STEP 1: Creating transaction record...");
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-      const { createInstamojoTransaction } = await import("@/services/instamojo-payment");
-
-      console.log("🔄 Calling createInstamojoTransaction with:");
-      console.log("   • userId:", currentUser.uid);
-      console.log("   • planId:", plan.id);
-      console.log("   • amount:", plan.price);
-
-      let transactionId: string;
-      try {
-        transactionId = await createInstamojoTransaction(
-          currentUser.uid,
-          plan.id,
-          plan.price
-        );
-        console.log("✅ Transaction created successfully!");
-        console.log("   • Transaction ID:", transactionId);
-      } catch (txError: any) {
-        console.error("❌ TRANSACTION CREATION FAILED!");
-        console.error("   • Error:", txError);
-        console.error("   • Error Message:", txError.message);
-        console.error("   • Error Stack:", txError.stack);
-        throw new Error(`Failed to create transaction: ${txError.message}`);
-      }
-
-      setCurrentTransactionId(transactionId);
-
       // Get the smart link URL for the plan
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-      console.log("🔗 STEP 2: Getting smart link URL...");
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
       const smartLinkUrl = INSTAMOJO_LINKS[plan.id as keyof typeof INSTAMOJO_LINKS];
 
       if (!smartLinkUrl) {
-        console.error("❌ Smart link not found for plan:", plan.id);
-        console.error("   • Available plans:", Object.keys(INSTAMOJO_LINKS));
         throw new Error("Smart link not configured for this plan");
       }
 
-      console.log("✅ Smart link found:", smartLinkUrl);
+      console.log("🔗 Opening smart link in WebView:", smartLinkUrl);
 
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-      console.log("🌐 STEP 3: Opening WebView...");
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-      console.log("📦 Transaction ready for webhook:");
-      console.log("   • Transaction ID:", transactionId);
-      console.log("   • User ID:", currentUser.uid);
-      console.log("   • Plan ID:", plan.id);
-      console.log("   • Amount:", plan.price);
-      console.log("   • Smart Link:", smartLinkUrl);
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-      // Open WebView - transaction is ready for webhook
+      // Open WebView immediately - webhook will create transaction
       setShowWebView(true);
     } catch (error: any) {
-      console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-      console.error("❌ PAYMENT FLOW FAILED!");
-      console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-      console.error("   • Error:", error);
-      console.error("   • Error Message:", error.message);
-      console.error("   • Error Stack:", error.stack);
-      console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-      Alert.alert(
-        "Payment Error",
-        `Failed to initiate payment: ${error.message}. Please try again or contact support.`,
-        [{ text: "OK" }]
-      );
-      onError(error.message || "Failed to initiate payment. Please try again.");
+      console.error("❌ Payment error:", error);
+      onError(error.message || "Payment failed. Please try again.");
     } finally {
       setProcessing(false);
     }
@@ -420,11 +330,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   // Verification Modal
   if (verifyingPayment) {
-    console.log("🔍 Rendering verification modal");
     return (
-      <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+      <Modal visible={visible} transparent animationType="fade">
         <Box className="flex-1 bg-black/90 justify-center items-center p-6">
-          <Box className="bg-background-0 rounded-3xl p-8 items-center">
+          <AnimatedBox
+            className="bg-background-0 rounded-3xl p-8 items-center"
+            entering={SlideInDown.duration(400).springify()}
+          >
             <ActivityIndicator size="large" color="#FF6B9D" />
             <Text className="text-typography-950 text-lg font-semibold font-satoshi mt-6">
               Verifying Payment
@@ -435,24 +347,24 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <Text className="text-typography-500 text-xs font-roboto text-center mt-3">
               This usually takes 10-15 seconds
             </Text>
-          </Box>
+          </AnimatedBox>
         </Box>
       </Modal>
     );
   }
 
-  console.log("🎨 Rendering main payment modal content");
-
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={processing ? undefined : onClose}
-      statusBarTranslucent
     >
       <Box className="flex-1 bg-black/80 justify-end">
-        <Box className="bg-background-0 rounded-t-3xl overflow-hidden">
+        <AnimatedBox
+          className="bg-background-0 rounded-t-3xl overflow-hidden"
+          entering={SlideInDown.duration(400).springify()}
+        >
           {/* Header */}
           <LinearGradient
             colors={["#FF6B9D", "#C239B3"]}
@@ -610,7 +522,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               Your subscription will be activated after successful payment.
             </Text>
           </VStack>
-        </Box>
+        </AnimatedBox>
       </Box>
     </Modal>
   );

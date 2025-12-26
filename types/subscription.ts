@@ -28,8 +28,7 @@ export enum PaymentStatus {
  * Payment gateway provider
  */
 export enum PaymentProvider {
-  GOOGLE_PLAY = "google_play",
-  APPLE_IAP = "apple_iap", // For future iOS support
+  INSTAMOJO = "instamojo",
 }
 
 // ============================================================================
@@ -64,21 +63,16 @@ export interface SubscriptionConfig {
   // Free trial settings
   freeTrialSwipeLimit: number; // Number of swipes allowed in free trial (e.g., 5)
 
-  // Google Play settings
-  googlePlay?: {
-    packageName: string; // Android app package name (e.g., "com.dular.app")
-    serviceAccountKey: string; // Google Play service account JSON key (stringified)
-  };
-
-  // Apple IAP settings (for future iOS support)
-  appleIAP?: {
-    bundleId: string; // iOS bundle identifier
-    sharedSecret: string; // App-specific shared secret
+  // Instamojo settings (payment gateway configuration managed in Firebase Cloud Functions)
+  instamojoApiKey?: string; // Instamojo API Key
+  instamojoAuthToken?: string; // Instamojo Auth Token
+  instamojoPrivateSalt?: string; // Instamojo Private Salt for webhook verification
+  instamojoSmartLinks?: {
+    [key in PlanType]?: string; // Smart link URLs for each plan
   };
 
   // Feature flags
   subscriptionEnabled: boolean; // Master toggle for subscription feature
-  paymentProvider: PaymentProvider; // Active payment provider
 
   // Timestamps
   updatedAt: Date;
@@ -113,15 +107,6 @@ export interface UserSubscription {
   isPremium: boolean; // Whether user has any premium plan
   autoRenew: boolean; // Whether to auto-renew subscription
 
-  // Google Play specific fields
-  googlePlayPurchaseToken?: string; // Google Play purchase token (unique identifier)
-  googlePlayOrderId?: string; // Google Play order ID
-  googlePlaySubscriptionId?: string; // Google Play subscription product ID
-
-  // Apple IAP specific fields (for future iOS support)
-  appleTransactionId?: string; // Apple transaction ID
-  appleOriginalTransactionId?: string; // Apple original transaction ID
-
   // Payment history (last 10 transactions)
   paymentHistory: {
     transactionId: string;
@@ -151,28 +136,22 @@ export interface Transaction {
   userId: string;
   userEmail: string;
   userName: string;
-  userPhone?: string;
 
   // Plan details
   planId: PlanType;
   planName: string;
-  planType?: PlanType; // Duplicate of planId for backwards compatibility
 
   // Payment details
-  amount: number; // Amount in local currency
-  currency: string; // Currency code (INR, USD, etc.)
+  amount: number; // Amount in INR
+  currency: string; // "INR"
   provider: PaymentProvider;
 
-  // Google Play specific fields
-  googlePlayPurchaseToken?: string; // Google Play purchase token
-  googlePlayOrderId?: string; // Google Play order ID
-  googlePlaySubscriptionId?: string; // Google Play subscription product ID
-  googlePlayNotificationType?: string; // Notification type (PURCHASED, RENEWED, etc.)
-
-  // Apple IAP specific fields (for future iOS support)
-  appleTransactionId?: string; // Apple transaction ID
-  appleOriginalTransactionId?: string; // Apple original transaction ID
-  appleReceiptData?: string; // Apple receipt data
+  // Gateway specific fields
+  ccavenueOrderId?: string | null; // CCAvenue Order ID (deprecated)
+  ccavenueTrackingId?: string | null; // CCAvenue Tracking ID (deprecated)
+  ccavenuePaymentMode?: string | null; // CCAvenue Payment Mode (deprecated)
+  instamojoPaymentId?: string | null; // Instamojo Payment ID
+  instamojoPaymentRequestId?: string | null; // Instamojo Payment Request ID
 
   // Status
   status: PaymentStatus;
@@ -181,9 +160,6 @@ export interface Transaction {
   // Timestamps
   createdAt: Date;
   completedAt: Date | null;
-
-  // Webhook data (for debugging)
-  webhookData?: Record<string, any>;
 
   // Metadata
   metadata?: {
@@ -288,8 +264,6 @@ export interface UseSubscriptionReturn {
   // Swipe management
   canSwipe: boolean;
   swipesRemaining: number;
-  swipesUsedToday: number;
-  swipesLimit: number;
   incrementSwipe: () => Promise<void>;
 
   // Subscription actions
@@ -301,6 +275,9 @@ export interface UseSubscriptionReturn {
   isPremium: boolean;
   isExpired: boolean;
   daysRemaining: number;
+
+  // Feature flag
+  subscriptionEnabled: boolean;
 }
 
 // ============================================================================

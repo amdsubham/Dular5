@@ -102,19 +102,19 @@ export default function MigrateUsersPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Migrate Users</h1>
-        <p className="text-gray-600 mt-2">
+    <div className="p-4 md:p-6 lg:p-8">
+      <div className="mb-4 md:mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Migrate Users</h1>
+        <p className="text-sm md:text-base text-gray-600 mt-2">
           Upload MongoDB user data (JSON) to migrate to Firestore
         </p>
       </div>
 
       {/* Upload Section */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Upload JSON File</h2>
+      <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-4 md:mb-6">
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Upload JSON File</h2>
 
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 md:p-8 text-center">
           <input
             ref={fileInputRef}
             type="file"
@@ -126,7 +126,7 @@ export default function MigrateUsersPage() {
           />
           <label
             htmlFor="file-upload"
-            className={`cursor-pointer inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
+            className={`cursor-pointer inline-flex items-center px-3 md:px-4 py-2 border border-transparent text-xs md:text-sm font-medium rounded-md text-white ${
               isUploading ? 'bg-gray-400' : 'bg-pink-600 hover:bg-pink-700'
             }`}
           >
@@ -134,8 +134,8 @@ export default function MigrateUsersPage() {
           </label>
 
           {file && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-600">
+            <div className="mt-3 md:mt-4">
+              <p className="text-xs md:text-sm text-gray-600 break-all">
                 Selected: <span className="font-medium">{file.name}</span>
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -146,8 +146,8 @@ export default function MigrateUsersPage() {
         </div>
 
         {/* Instructions */}
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">Expected JSON Format:</h3>
+        <div className="mt-3 md:mt-4 p-3 md:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="text-xs md:text-sm font-semibold text-blue-900 mb-2">Expected JSON Format:</h3>
           <pre className="text-xs text-blue-800 overflow-x-auto">
 {`[
   {
@@ -169,11 +169,11 @@ export default function MigrateUsersPage() {
 
       {/* Errors */}
       {errors.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-semibold text-red-900 mb-2">Validation Errors:</h3>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 md:p-4 mb-4 md:mb-6">
+          <h3 className="text-xs md:text-sm font-semibold text-red-900 mb-2">Validation Errors:</h3>
           <ul className="list-disc list-inside space-y-1">
             {errors.map((error, index) => (
-              <li key={index} className="text-sm text-red-800">
+              <li key={index} className="text-xs md:text-sm text-red-800">
                 {error}
               </li>
             ))}
@@ -183,24 +183,24 @@ export default function MigrateUsersPage() {
 
       {/* Preview */}
       {previewData.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-4 md:mb-6">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">
             Preview (First {previewData.length} users)
           </h2>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-3 md:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     ID
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-3 md:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     Name
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-3 md:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     Gender
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-3 md:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     Interested In
                   </th>
                 </tr>
@@ -208,12 +208,12 @@ export default function MigrateUsersPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {previewData.map((user, index) => (
                   <tr key={index}>
-                    <td className="px-4 py-2 text-sm text-gray-900 font-mono">
+                    <td className="px-3 md:px-4 py-2 text-xs md:text-sm text-gray-900 font-mono">
                       {user.id.substring(0, 12)}...
                     </td>
-                    <td className="px-4 py-2 text-sm text-gray-900">{user.name}</td>
-                    <td className="px-4 py-2 text-sm text-gray-900">{user.gender}</td>
-                    <td className="px-4 py-2 text-sm text-gray-900">{user.genderOfInterest}</td>
+                    <td className="px-3 md:px-4 py-2 text-xs md:text-sm text-gray-900">{user.name}</td>
+                    <td className="px-3 md:px-4 py-2 text-xs md:text-sm text-gray-900">{user.gender}</td>
+                    <td className="px-3 md:px-4 py-2 text-xs md:text-sm text-gray-900">{user.genderOfInterest}</td>
                   </tr>
                 ))}
               </tbody>
@@ -224,25 +224,25 @@ export default function MigrateUsersPage() {
 
       {/* Migration Actions */}
       {file && !results && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Ready to Migrate</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <h2 className="text-base md:text-lg font-semibold text-gray-900">Ready to Migrate</h2>
+              <p className="text-xs md:text-sm text-gray-600 mt-1">
                 All users will be migrated to Firestore with location: Ranchi (23.3516935, 85.2543815)
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 md:gap-3">
               <button
                 onClick={handleReset}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                className="px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                 disabled={isUploading}
               >
                 Cancel
               </button>
               <button
                 onClick={handleMigrate}
-                className={`px-6 py-2 rounded-md text-white font-medium ${
+                className={`px-4 md:px-6 py-2 text-sm md:text-base rounded-md text-white font-medium ${
                   isUploading
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-pink-600 hover:bg-pink-700'
@@ -258,10 +258,10 @@ export default function MigrateUsersPage() {
 
       {/* Progress */}
       {isUploading && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Migration Progress</h2>
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-4 md:mb-6">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Migration Progress</h2>
           <div className="space-y-3">
-            <div className="flex justify-between text-sm text-gray-600">
+            <div className="flex justify-between text-xs md:text-sm text-gray-600">
               <span>
                 Migrating user {progress.current} of {progress.total}
               </span>
@@ -272,9 +272,9 @@ export default function MigrateUsersPage() {
                 %
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
               <div
-                className="bg-pink-600 h-3 rounded-full transition-all duration-300"
+                className="bg-pink-600 h-2 md:h-3 rounded-full transition-all duration-300"
                 style={{
                   width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%`,
                 }}
@@ -286,13 +286,13 @@ export default function MigrateUsersPage() {
 
       {/* Results */}
       {results && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-base md:text-lg font-semibold text-gray-900">
               {results.stoppedEarly ? 'Migration Stopped' : 'Migration Complete'}
             </h2>
             {results.stoppedEarly && (
-              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
+              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs md:text-sm font-medium rounded-full inline-block">
                 Stopped Early
               </span>
             )}
@@ -300,38 +300,38 @@ export default function MigrateUsersPage() {
 
           {results.stoppedEarly && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
+              <p className="text-xs md:text-sm text-yellow-800">
                 Migration was stopped after encountering an error. Only {results.successCount} out of {results.totalUsers} users were successfully migrated.
               </p>
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-900">{results.totalUsers}</div>
-              <div className="text-sm text-blue-700">Total Users</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
+            <div className="bg-blue-50 rounded-lg p-3 md:p-4">
+              <div className="text-xl md:text-2xl font-bold text-blue-900">{results.totalUsers}</div>
+              <div className="text-xs md:text-sm text-blue-700">Total Users</div>
             </div>
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-green-900">{results.successCount}</div>
-              <div className="text-sm text-green-700">Successful</div>
+            <div className="bg-green-50 rounded-lg p-3 md:p-4">
+              <div className="text-xl md:text-2xl font-bold text-green-900">{results.successCount}</div>
+              <div className="text-xs md:text-sm text-green-700">Successful</div>
             </div>
-            <div className="bg-red-50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-red-900">{results.failedCount}</div>
-              <div className="text-sm text-red-700">Failed</div>
+            <div className="bg-red-50 rounded-lg p-3 md:p-4">
+              <div className="text-xl md:text-2xl font-bold text-red-900">{results.failedCount}</div>
+              <div className="text-xs md:text-sm text-red-700">Failed</div>
             </div>
           </div>
 
           {results.failedCount > 0 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Failed Users:</h3>
-              <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+            <div className="mb-4 md:mb-6">
+              <h3 className="text-xs md:text-sm font-semibold text-gray-900 mb-2">Failed Users:</h3>
+              <div className="max-h-60 overflow-y-auto overflow-x-auto border border-gray-200 rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 md:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         User ID
                       </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 md:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Error
                       </th>
                     </tr>
@@ -341,10 +341,10 @@ export default function MigrateUsersPage() {
                       .filter((r: any) => !r.success)
                       .map((result: any, index: number) => (
                         <tr key={index}>
-                          <td className="px-4 py-2 text-sm text-gray-900 font-mono">
+                          <td className="px-3 md:px-4 py-2 text-xs md:text-sm text-gray-900 font-mono break-all">
                             {result.userId}
                           </td>
-                          <td className="px-4 py-2 text-sm text-red-600">{result.error}</td>
+                          <td className="px-3 md:px-4 py-2 text-xs md:text-sm text-red-600">{result.error}</td>
                         </tr>
                       ))}
                   </tbody>
@@ -355,7 +355,7 @@ export default function MigrateUsersPage() {
 
           <button
             onClick={handleReset}
-            className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            className="w-full px-4 py-2 text-sm md:text-base border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
           >
             Migrate Another File
           </button>
@@ -364,12 +364,12 @@ export default function MigrateUsersPage() {
 
       {/* Error Modal */}
       {errorModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-xs sm:max-w-md md:max-w-lg w-full p-4 md:p-6">
             <div className="flex items-start mb-4">
               <div className="flex-shrink-0">
                 <svg
-                  className="h-6 w-6 text-red-600"
+                  className="h-5 w-5 md:h-6 md:w-6 text-red-600"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -382,13 +382,13 @@ export default function MigrateUsersPage() {
                   />
                 </svg>
               </div>
-              <div className="ml-3 flex-1">
-                <h3 className="text-lg font-medium text-gray-900">Migration Error</h3>
-                <div className="mt-2 text-sm text-gray-500">
+              <div className="ml-2 md:ml-3 flex-1">
+                <h3 className="text-base md:text-lg font-medium text-gray-900">Migration Error</h3>
+                <div className="mt-2 text-xs md:text-sm text-gray-500">
                   <p className="mb-2">
                     <strong>User {errorModal.index} of {errorModal.total}</strong>
                   </p>
-                  <p className="mb-1">
+                  <p className="mb-1 break-all">
                     <strong>User ID:</strong>{' '}
                     <span className="font-mono text-xs">{errorModal.userId}</span>
                   </p>
@@ -402,16 +402,16 @@ export default function MigrateUsersPage() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-3 justify-end mt-6">
+            <div className="flex flex-col sm:flex-row gap-2 md:gap-3 justify-end mt-4 md:mt-6">
               <button
                 onClick={() => handleErrorModalResponse(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+                className="px-4 py-2 text-sm md:text-base border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
               >
                 Stop Migration
               </button>
               <button
                 onClick={() => handleErrorModalResponse(true)}
-                className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 font-medium"
+                className="px-4 py-2 text-sm md:text-base bg-pink-600 text-white rounded-md hover:bg-pink-700 font-medium"
               >
                 Continue to Next User
               </button>

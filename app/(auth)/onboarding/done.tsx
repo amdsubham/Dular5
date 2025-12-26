@@ -46,9 +46,9 @@ const done = () => {
       </AnimatedVstack>
       <Fab
         onPress={() => {
-          router.replace("/home");
+          router.replace("/(protected)/(root)/home");
         }}
-        className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
+        className="bg-background-950 rounded-lg absolute bottom-32 right-5 data-[active=true]:bg-background-900"
         style={{ marginBottom: -1 * insets.bottom }}
       >
         <FabLabel>Start Swiping</FabLabel>

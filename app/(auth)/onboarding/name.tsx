@@ -41,7 +41,7 @@ const name = () => {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
       });
-      router.push("/onboarding/dob");
+      router.push("/(auth)/onboarding/dob");
     }
   };
 

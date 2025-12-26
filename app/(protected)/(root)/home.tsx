@@ -12,16 +12,52 @@ import Animated, { FadeInRight } from "react-native-reanimated";
 import SwipeScreen from "@/components/screens/home/swipe-screen/index-firestore";
 import { useFilters } from "@/contexts/FilterContext";
 import { fixCurrentUserOnboarding } from "@/services/fix-onboarding";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Crown } from "lucide-react-native";
 
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 function Header() {
+  const { subscription, isPremium, subscriptionEnabled } = useSubscription();
+
+  // Get current plan display name
+  const getPlanDisplayName = () => {
+    // Don't show premium badge if subscriptions are disabled
+    if (!subscriptionEnabled) return null;
+    if (!subscription || !isPremium) return null;
+
+    const currentPlan = subscription.currentPlan || "daily";
+    switch (currentPlan) {
+      case "daily":
+        return "Daily Premium";
+      case "weekly":
+        return "Weekly Premium";
+      case "monthly":
+        return "Monthly Premium";
+      default:
+        return "Premium";
+    }
+  };
+
+  const planName = getPlanDisplayName();
+
   return (
     <Box className="w-full flex flex-col p-4 gap-2">
-      <Box className="flex flex-row items-center gap-2">
-        <Icon as={LogoIcon} className="w-7 h-7" />
-        <Heading size="xl" className="font-satoshi">
-          Dular
-        </Heading>
+      <Box className="flex flex-row items-center justify-between">
+        <Box className="flex flex-row items-center gap-2">
+          <Icon as={LogoIcon} className="w-7 h-7" />
+          <Heading size="xl" className="font-satoshi">
+            Dular
+          </Heading>
+        </Box>
+
+        {planName && (
+          <Box className="flex flex-row items-center gap-1.5 bg-primary-500/10 px-3 py-1.5 rounded-full">
+            <Icon as={Crown} size="xs" className="text-primary-500" />
+            <Text className="text-primary-500 text-xs font-semibold font-roboto">
+              {planName}
+            </Text>
+          </Box>
+        )}
       </Box>
     </Box>
   );
@@ -30,8 +66,20 @@ function Header() {
 function FilterLayout() {
   const [isOpen, setIsOpen] = useState(false);
   const [defaultOpen, setDefaultOpen] = useState<string | undefined>(undefined);
+
+  // Map filter names to accordion keys
+  const getAccordionKey = (filterName: string) => {
+    const mapping: { [key: string]: string } = {
+      "Gender": "gender",
+      "Age": "age",
+      "Distance": "distance",
+      "Looking For": "looking-for"
+    };
+    return mapping[filterName] || filterName.toLowerCase().replace(" ", "-");
+  };
+
   const defaultOpenProp = defaultOpen && {
-    defaultOpen: [defaultOpen?.toLocaleLowerCase().replace(" ", "-")],
+    defaultOpen: [getAccordionKey(defaultOpen)],
   };
   return (
     <AnimatedBox
@@ -58,7 +106,7 @@ function FilterLayout() {
         showsHorizontalScrollIndicator={false}
       >
         <Box className="flex flex-row items-center">
-          {["Age", "Distance", "Looking For"].map((item) => (
+          {["Gender", "Age", "Distance", "Looking For"].map((item) => (
             <Button
               className="px-3 py-2 rounded-3xl mr-2 bg-background-50 data-[active=true]:bg-background-100"
               size="sm"

@@ -78,10 +78,7 @@ export default function Index() {
 
       // Navigate to OTP screen with phone number as parameter
       console.log("🔄 Navigating to OTP screen with phone:", formattedPhone);
-      router.push({
-        pathname: "/onboarding/otp",
-        params: { phoneNumber: formattedPhone }
-      });
+      router.push(`/(auth)/onboarding/otp?phoneNumber=${encodeURIComponent(formattedPhone)}`);
     } catch (error: any) {
       console.error("❌ Error processing phone number:", error);
 

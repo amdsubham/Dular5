@@ -95,7 +95,7 @@ const intro = () => {
       <Fab
         size="lg"
         onPress={() => {
-          router.push("/onboarding/pictures");
+          router.push("/(auth)/onboarding/pictures");
         }}
         className="bg-background-950 rounded-lg absolute bottom-11 right-5 data-[active=true]:bg-background-900"
         style={{

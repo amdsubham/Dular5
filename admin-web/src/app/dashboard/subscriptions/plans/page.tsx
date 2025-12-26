@@ -75,14 +75,14 @@ export default function PlansManagementPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Subscription Plans</h1>
-          <p className="text-gray-600 mt-2">Manage your subscription tiers and pricing</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Subscription Plans</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">Manage your subscription tiers and pricing</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors text-sm md:text-base whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
           Add New Plan
@@ -91,7 +91,8 @@ export default function PlansManagementPage() {
 
       {/* Plans Table */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -171,7 +172,7 @@ export default function PlansManagementPage() {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     <Link
-                      href={`/dashboard/subscriptions/plans/${plan.id}`}
+                      href={`/dashboard/subscriptions/plans/edit?id=${plan.id}`}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Edit Plan"
                     >
@@ -189,7 +190,8 @@ export default function PlansManagementPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
 
         {plans.length === 0 && (
           <div className="text-center py-12">
@@ -206,16 +208,16 @@ export default function PlansManagementPage() {
       </div>
 
       {/* Features Summary */}
-      <div className="mt-6 bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Plan Features</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mt-4 md:mt-6 bg-white rounded-xl shadow-md p-4 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Plan Features</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {plans.map((plan) => (
-            <div key={plan.id} className="border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900 mb-3">{plan.displayName}</h3>
-              <ul className="space-y-2">
+            <div key={plan.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+              <h3 className="font-semibold text-gray-900 mb-2 md:mb-3 text-sm md:text-base">{plan.displayName}</h3>
+              <ul className="space-y-1.5 md:space-y-2">
                 {plan.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-500 mt-0.5">✓</span>
+                  <li key={idx} className="flex items-start gap-2 text-xs md:text-sm text-gray-700">
+                    <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>
                     <span>{feature}</span>
                   </li>
                 ))}
@@ -227,22 +229,22 @@ export default function PlansManagementPage() {
 
       {/* Add Plan Modal (placeholder - you can enhance this) */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Add New Plan</h2>
-            <p className="text-gray-600 mb-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 md:p-8 max-w-md w-full">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 md:mb-4">Add New Plan</h2>
+            <p className="text-sm md:text-base text-gray-600 mb-4 md:mb-6">
               Use the individual plan editor to create a new subscription plan.
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Link
-                href="/dashboard/subscriptions/plans/new"
-                className="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-center transition-colors"
+                href="/dashboard/subscriptions/plans/edit?id=new"
+                className="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-lg text-center transition-colors text-sm md:text-base"
               >
                 Go to Plan Editor
               </Link>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+                className="px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors text-sm md:text-base"
               >
                 Cancel
               </button>

@@ -23,7 +23,7 @@ import { useFilters } from "@/contexts/FilterContext";
 
 export const accordionItems = [
   {
-    key: "who",
+    key: "gender",
     title: "Who you want to date?",
     content: () => {
       const { filters, updateFilters } = useFilters();

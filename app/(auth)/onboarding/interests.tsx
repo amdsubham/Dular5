@@ -76,7 +76,7 @@ const interests = () => {
       await updateOnboardingProgress("interests", {
         interests: selectedInterests,
       });
-      router.push("/onboarding/location");
+      router.push("/(auth)/onboarding/location");
     } else {
       Alert.alert("Required", "Please select at least one interest to continue.");
     }

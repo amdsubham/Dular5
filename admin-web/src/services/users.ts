@@ -208,7 +208,8 @@ export const filterUsers = async (filters: UserFilters): Promise<UserProfile[]> 
 
     // Apply gender filter
     if (filters.gender) {
-      console.log('Applying gender filter:', filters.gender);
+      const filterGender = filters.gender;
+      console.log('Applying gender filter:', filterGender);
       users = users.filter(user => {
         // Check both locations for gender data
         const gender = user.onboarding?.data?.gender || user.gender;
@@ -221,8 +222,8 @@ export const filterUsers = async (filters: UserFilters): Promise<UserProfile[]> 
         }
 
         // Case-insensitive comparison
-        const matches = gender.toLowerCase() === filters.gender.toLowerCase();
-        console.log('Gender matches:', matches, `(${gender.toLowerCase()} === ${filters.gender.toLowerCase()})`);
+        const matches = gender.toLowerCase() === filterGender.toLowerCase();
+        console.log('Gender matches:', matches, `(${gender.toLowerCase()} === ${filterGender.toLowerCase()})`);
         return matches;
       });
       console.log('Users after gender filter:', users.length);
@@ -274,5 +275,73 @@ export const getUserStats = async () => {
   } catch (error) {
     console.error('Error getting user stats:', error);
     throw error;
+  }
+};
+
+export interface SwipeStats {
+  totalSwipes: number;
+  todaySwipes: number;
+  rightSwipes: number;
+  leftSwipes: number;
+  lastSwipeDate: Date | null;
+}
+
+/**
+ * Get swipe statistics for a specific user
+ * @param userId The user ID to get swipe stats for
+ * @returns SwipeStats object with total swipes, today's swipes, and breakdown
+ */
+export const getUserSwipeStats = async (userId: string): Promise<SwipeStats> => {
+  try {
+    const swipesRef = collection(db, 'swipes');
+    const q = query(swipesRef, where('swiperId', '==', userId));
+    const snapshot = await getDocs(q);
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    let todaySwipes = 0;
+    let rightSwipes = 0; // likes
+    let leftSwipes = 0; // passes
+    let lastSwipeDate: Date | null = null;
+
+    snapshot.docs.forEach(doc => {
+      const swipeData = doc.data();
+      const swipeDate = swipeData.timestamp?.toDate ? swipeData.timestamp.toDate() : new Date(swipeData.timestamp);
+
+      // Count today's swipes
+      if (swipeDate >= todayStart) {
+        todaySwipes++;
+      }
+
+      // Count by action ('like' or 'pass')
+      if (swipeData.action === 'like') {
+        rightSwipes++;
+      } else if (swipeData.action === 'pass') {
+        leftSwipes++;
+      }
+
+      // Track last swipe date
+      if (!lastSwipeDate || swipeDate > lastSwipeDate) {
+        lastSwipeDate = swipeDate;
+      }
+    });
+
+    return {
+      totalSwipes: snapshot.docs.length,
+      todaySwipes,
+      rightSwipes,
+      leftSwipes,
+      lastSwipeDate
+    };
+  } catch (error) {
+    console.error('Error fetching user swipe stats:', error);
+    return {
+      totalSwipes: 0,
+      todaySwipes: 0,
+      rightSwipes: 0,
+      leftSwipes: 0,
+      lastSwipeDate: null
+    };
   }
 };

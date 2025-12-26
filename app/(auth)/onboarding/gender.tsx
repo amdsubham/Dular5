@@ -29,7 +29,7 @@ const gender = () => {
       await updateOnboardingProgress("gender", {
         gender,
       });
-      router.push("/onboarding/interest");
+      router.push("/(auth)/onboarding/interest");
     }
   };
 

@@ -148,9 +148,9 @@ const pictures = () => {
       });
 
       console.log("Picture URLs saved to Firestore");
-      
+
       // Navigate to next screen
-      router.push("/onboarding/interests");
+      router.push("/(auth)/onboarding/interests");
     } catch (error: any) {
       console.error("Error uploading images:", error);
       Alert.alert(

@@ -4,6 +4,7 @@ import { getCurrentUser } from './auth';
 import { getUserProfile, calculateAge } from './profile';
 import { calculateDistance } from './location';
 import { sendMatchNotification } from './notifications';
+import { analytics } from './analytics';
 
 export interface MatchUser {
   uid: string;
@@ -348,6 +349,11 @@ export const recordSwipeAction = async (
 
     console.log(`User ${currentUser.uid} ${action}d user ${targetUserId}`);
 
+    // Track swipe action in analytics
+    await analytics.trackMatchAction(action, targetUserId).catch(err =>
+      console.warn('Analytics tracking failed:', err)
+    );
+
     // Check for mutual match if action is 'like'
     if (action === 'like') {
       const isMatch = await checkForMatch(targetUserId);
@@ -537,6 +543,13 @@ export const createMatch = async (user1Id: string, user2Id: string): Promise<str
 
     // Send notification to user2 about matching with user1
     sendMatchNotification(user2Id, user1Name, user1Id).catch(console.error);
+
+    // Track match created in analytics
+    await analytics.track('match_created', {
+      matchId,
+      user1Id,
+      user2Id,
+    }).catch(err => console.warn('Analytics tracking failed:', err));
 
     return matchId;
   } catch (error) {

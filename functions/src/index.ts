@@ -539,7 +539,7 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
 
         const pendingTransactionQuery = await admin.firestore()
           .collection("transactions")
-          .where("status", "==", "pending")
+          .where("status", "==", "PENDING")
           .orderBy("createdAt", "desc")
           .limit(20) // Check last 20 pending transactions
           .get();
@@ -651,155 +651,26 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
         new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
       );
 
-      try {
-        transactionQuery = await admin.firestore()
-          .collection("transactions")
-          .where("userId", "==", userId)
-          .where("status", "==", "pending")
-          .where("provider", "==", "instamojo")
-          .where("createdAt", ">=", fiveMinutesAgo)
-          .orderBy("createdAt", "desc")
-          .limit(1)
-          .get();
+      transactionQuery = await admin.firestore()
+        .collection("transactions")
+        .where("userId", "==", userId)
+        .where("status", "==", "PENDING")
+        .where("provider", "==", "instamojo")
+        .where("createdAt", ">=", fiveMinutesAgo)
+        .orderBy("createdAt", "desc")
+        .limit(1)
+        .get();
 
-        if (!transactionQuery.empty) {
-          console.log("  ✅ Found transaction by userId + PENDING status");
-          const foundTransaction = transactionQuery.docs[0].data();
-          console.log("    • Transaction ID:", transactionQuery.docs[0].id);
-          console.log("    • Plan ID:", foundTransaction.planId);
-          console.log("    • Amount:", foundTransaction.amount);
-          console.log("    • Created:", foundTransaction.createdAt?.toDate?.());
-          shouldCreateTransaction = false;
-        } else {
-          console.log("  ❌ No recent PENDING transaction found for user");
-        }
-      } catch (indexError: any) {
-        console.error("  ❌ Firestore index error for Strategy 2:", indexError.message);
-        console.log("  ℹ️  Trying fallback strategy without createdAt filter...");
-
-        // Fallback: Search without createdAt filter (simpler query, no index needed)
-        try {
-          transactionQuery = await admin.firestore()
-            .collection("transactions")
-            .where("userId", "==", userId)
-            .where("status", "==", "pending")
-            .where("provider", "==", "instamojo")
-            .limit(10) // Get last 10 pending transactions
-            .get();
-
-          if (!transactionQuery.empty) {
-            console.log(`  ℹ️  Found ${transactionQuery.size} pending Instamojo transactions for user`);
-
-            // Filter and sort manually by createdAt
-            const recentTransactions = transactionQuery.docs
-              .map(doc => ({ id: doc.id, data: doc.data(), ref: doc }))
-              .filter(tx => {
-                const createdAt = tx.data.createdAt?.toDate();
-                return createdAt && createdAt > new Date(Date.now() - 5 * 60 * 1000);
-              })
-              .sort((a, b) => {
-                const aTime = a.data.createdAt?.toMillis() || 0;
-                const bTime = b.data.createdAt?.toMillis() || 0;
-                return bTime - aTime;
-              });
-
-            if (recentTransactions.length > 0) {
-              console.log("  ✅ Found transaction (fallback method)");
-              const foundTransaction = recentTransactions[0];
-              console.log("    • Transaction ID:", foundTransaction.id);
-              console.log("    • Plan ID:", foundTransaction.data.planId);
-              console.log("    • Amount:", foundTransaction.data.amount);
-              console.log("    • Created:", foundTransaction.data.createdAt?.toDate?.());
-
-              // Reconstruct query result format
-              transactionQuery = {
-                empty: false,
-                docs: [foundTransaction.ref],
-              } as any;
-              shouldCreateTransaction = false;
-            } else {
-              console.log("  ❌ No recent transactions in fallback either");
-            }
-          } else {
-            console.log("  ❌ No PENDING Instamojo transactions found for user (fallback)");
-          }
-        } catch (fallbackError: any) {
-          console.error("  ❌ Fallback strategy also failed:", fallbackError.message);
-        }
-      }
-    }
-
-    // Strategy 3: Search by phone number (handles multiple user accounts with same phone)
-    if (shouldCreateTransaction && phoneNumber) {
-      console.log("  • Strategy 3: Searching by phone number + PENDING status");
-      console.log("    • Phone number:", phoneNumber);
-
-      try {
-        transactionQuery = await admin.firestore()
-          .collection("transactions")
-          .where("userPhone", "==", phoneNumber)
-          .where("status", "==", "pending")
-          .where("provider", "==", "instamojo")
-          .limit(10) // Get last 10 pending transactions with this phone
-          .get();
-
-        if (!transactionQuery.empty) {
-          console.log(`  ℹ️  Found ${transactionQuery.size} pending Instamojo transactions for phone ${phoneNumber}`);
-
-          // Filter and sort manually by createdAt (get most recent)
-          const recentTransactions = transactionQuery.docs
-            .map(doc => ({ id: doc.id, data: doc.data(), ref: doc }))
-            .filter(tx => {
-              const createdAt = tx.data.createdAt?.toDate();
-              return createdAt && createdAt > new Date(Date.now() - 5 * 60 * 1000);
-            })
-            .sort((a, b) => {
-              const aTime = a.data.createdAt?.toMillis() || 0;
-              const bTime = b.data.createdAt?.toMillis() || 0;
-              return bTime - aTime;
-            });
-
-          if (recentTransactions.length > 0) {
-            console.log("  ✅ Found transaction by phone number");
-            const foundTransaction = recentTransactions[0];
-            console.log("    • Transaction ID:", foundTransaction.id);
-            console.log("    • User ID (from transaction):", foundTransaction.data.userId);
-            console.log("    • User ID (from webhook lookup):", userId);
-            console.log("    • Plan ID:", foundTransaction.data.planId);
-            console.log("    • Amount:", foundTransaction.data.amount);
-            console.log("    • Created:", foundTransaction.data.createdAt?.toDate?.());
-
-            // Use the userId from the transaction (not from webhook user lookup)
-            userId = foundTransaction.data.userId;
-            console.log("    ℹ️  Using userId from transaction:", userId);
-
-            // Fetch the correct user document
-            try {
-              const correctUserDoc = await admin.firestore().collection("users").doc(userId).get();
-              if (correctUserDoc.exists) {
-                userDoc = correctUserDoc;
-                console.log("    ✅ Fetched correct user document for userId:", userId);
-              } else {
-                console.log("    ⚠️ User document not found for userId:", userId);
-              }
-            } catch (userFetchError: any) {
-              console.error("    ❌ Error fetching user document:", userFetchError.message);
-            }
-
-            // Reconstruct query result format
-            transactionQuery = {
-              empty: false,
-              docs: [foundTransaction.ref],
-            } as any;
-            shouldCreateTransaction = false;
-          } else {
-            console.log("  ❌ No recent transactions for phone number in last 5 minutes");
-          }
-        } else {
-          console.log("  ❌ No PENDING Instamojo transactions found for phone:", phoneNumber);
-        }
-      } catch (phoneError: any) {
-        console.error("  ❌ Phone number search failed:", phoneError.message);
+      if (!transactionQuery.empty) {
+        console.log("  ✅ Found transaction by userId + PENDING status");
+        const foundTransaction = transactionQuery.docs[0].data();
+        console.log("    • Transaction ID:", transactionQuery.docs[0].id);
+        console.log("    • Plan ID:", foundTransaction.planId);
+        console.log("    • Amount:", foundTransaction.amount);
+        console.log("    • Created:", foundTransaction.createdAt?.toDate?.());
+        shouldCreateTransaction = false;
+      } else {
+        console.log("  ❌ No recent PENDING transaction found for user");
       }
     }
 
@@ -809,9 +680,9 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
     if (shouldCreateTransaction) {
       console.warn("\n⚠️ NO EXISTING TRANSACTION FOUND!");
       console.warn("⚠️ This should NOT happen in normal flow!");
-      console.warn("⚠️ Creating fallback transaction using smart link URL detection");
+      console.warn("⚠️ Creating fallback transaction (plan determination may be incorrect)");
 
-      // Determine plan type by checking the smart link URL used (RELIABLE METHOD)
+      // Determine plan type by checking the smart link URL used
       let planType = "daily"; // default
       const paymentAmount = parseFloat(amount);
       console.log("💰 Payment amount:", paymentAmount);
@@ -823,7 +694,7 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
         daily: "hbvW2s",
       };
 
-      // ONLY use smart link URL to detect plan (NOT amount-based, as coupons change amounts)
+      // Try to detect plan from the smart link URL fields
       if (shorturl || longurl) {
         const url = shorturl || longurl;
         console.log("🔗 Smart link URL:", url);
@@ -839,21 +710,25 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
           planType = "daily";
           console.log("✅ Detected DAILY plan from smart link URL");
         } else {
-          console.error("❌ Could not detect plan from URL:", url);
-          console.error("❌ No reliable way to determine plan without transaction record");
-          console.error("💡 Please ensure transaction is created BEFORE payment");
-          res.status(400).send("Unable to determine plan type - transaction should be created before payment");
-          return;
+          console.warn("⚠️ Could not detect plan from URL, falling back to amount-based detection");
+          // Fallback to amount-based detection
+          if (paymentAmount >= 350) {
+            planType = "monthly";
+          } else if (paymentAmount >= 150) {
+            planType = "weekly";
+          }
         }
       } else {
-        console.error("❌ No smart link URL in webhook");
-        console.error("❌ Cannot reliably determine plan type (amount-based detection removed due to coupon codes)");
-        console.error("💡 Please ensure transaction is created BEFORE payment");
-        res.status(400).send("Unable to determine plan type - transaction should be created before payment");
-        return;
+        console.warn("⚠️ No smart link URL in webhook, using amount-based detection");
+        // Fallback to amount-based detection if no URL available
+        if (paymentAmount >= 350) {
+          planType = "monthly";
+        } else if (paymentAmount >= 150) {
+          planType = "weekly";
+        }
       }
 
-      console.log("📋 Determined plan type (from smart link):", planType, "for amount:", paymentAmount);
+      console.log("📋 Determined plan type (fallback):", planType, "for amount:", paymentAmount);
 
       // Create new transaction record
       const userData = userDoc?.data();
@@ -877,7 +752,6 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
           webhookData: webhookData,
-          note: "Transaction created by webhook fallback - plan detected from smart link URL",
         });
 
       console.log("✅ Transaction created:", newTransactionRef.id);
@@ -892,21 +766,16 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
         console.log("\n📄 EXISTING TRANSACTION FOUND:");
         console.log("  • Transaction ID:", transactionDoc.id);
         console.log("  • Plan ID:", transaction.planId);
-        console.log("  • Plan Type:", transaction.planType || transaction.planId);
-        console.log("  • Amount (original):", transaction.amount);
-        console.log("  • Amount (paid):", amount);
+        console.log("  • Plan Type:", transaction.planType);
+        console.log("  • Amount:", transaction.amount);
         console.log("  • Status:", transaction.status);
-
-        // IMPORTANT: Always use planId/planType from the existing transaction
-        // This ensures coupon codes don't affect plan detection
-        console.log("✅ Using plan from existing transaction (ignoring amount)");
 
         // Update existing transaction with payment details
         await transactionDoc.ref.update({
           instamojoPaymentId: payment_id,
           instamojoPaymentRequestId: payment_request_id || null,
           status: "SUCCESS",
-          amountPaid: parseFloat(amount), // Actual amount paid (may differ due to coupons)
+          amount: parseFloat(amount),
           fees: parseFloat(fees || "0"),
           currency: currency || "INR",
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -915,7 +784,7 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
         });
 
         console.log("✅ Transaction updated successfully");
-        console.log("  • Will use planId from transaction:", transaction.planId || transaction.planType);
+        console.log("  • Will use planId from transaction:", transaction.planId);
       }
     }
 
@@ -924,19 +793,10 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
     const now = new Date();
     let endDate = new Date();
 
-    // Ensure we have planType (fallback to planId if not set)
-    const planType = transaction.planType || transaction.planId;
-    if (!planType) {
-      console.error("❌ No plan type found in transaction!");
-      console.error("  • Transaction data:", JSON.stringify(transaction, null, 2));
-      res.status(400).send("Invalid transaction - no plan type");
-      return;
-    }
-
     console.log("  • Current time:", now.toISOString());
-    console.log("  • Plan type:", planType);
+    console.log("  • Plan type:", transaction.planType);
 
-    switch (planType) {
+    switch (transaction.planType) {
       case "daily":
         endDate.setDate(endDate.getDate() + 1);
         console.log("  • Duration: 1 day");
@@ -950,7 +810,7 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
         console.log("  • Duration: 1 month");
         break;
       default:
-        console.error("❌ Invalid plan type:", planType);
+        console.error("❌ Invalid plan type:", transaction.planType);
         res.status(400).send("Invalid plan type");
         return;
     }
@@ -967,23 +827,23 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
 
     if (plansDoc.exists) {
       const plansData = plansDoc.data();
-      const planData = plansData ? plansData[planType] : null;
+      const planData = plansData ? plansData[transaction.planType] : null;
 
       if (planData) {
         swipesLimit = planData.swipeLimit || swipesLimit;
-        isPremium = planType !== "free";
-        console.log("  • Plan found:", planType);
+        isPremium = transaction.planType !== "free";
+        console.log("  • Plan found:", transaction.planType);
         console.log("  • Swipe limit from plan:", swipesLimit);
       } else {
-        console.warn("  ⚠️ Plan data not found for:", planType);
+        console.warn("  ⚠️ Plan data not found for:", transaction.planType);
         // Fallback to hardcoded values
-        swipesLimit = planType === "daily" ? 50 : planType === "weekly" ? 100 : -1;
+        swipesLimit = transaction.planType === "daily" ? 50 : transaction.planType === "weekly" ? 100 : -1;
         isPremium = true;
       }
     } else {
       console.warn("  ⚠️ Plans document not found, using fallback values");
       // Fallback to hardcoded values
-      swipesLimit = planType === "daily" ? 50 : planType === "weekly" ? 100 : -1;
+      swipesLimit = transaction.planType === "daily" ? 50 : transaction.planType === "weekly" ? 100 : -1;
       isPremium = true;
     }
 
@@ -998,7 +858,7 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
     const subscriptionDoc = await subscriptionRef.get();
 
     const subscriptionData = {
-      currentPlan: planType,
+      currentPlan: transaction.planType,
       planStartDate: admin.firestore.Timestamp.fromDate(now),
       planEndDate: admin.firestore.Timestamp.fromDate(endDate),
       isActive: true,
@@ -1011,29 +871,15 @@ export const instamojoWebhook = functions.https.onRequest(async (req, res) => {
 
     if (subscriptionDoc.exists) {
       console.log("  • Action: UPDATING existing subscription");
-      const previousData = subscriptionDoc.data();
-      console.log("  • Previous data:", JSON.stringify(previousData, null, 2));
+      console.log("  • Previous data:", JSON.stringify(subscriptionDoc.data(), null, 2));
 
-      // Check if this is an upgrade/downgrade (plan change)
-      const isPlanChange = previousData?.currentPlan !== planType;
-      console.log("  • Is plan change?", isPlanChange, `(${previousData?.currentPlan} → ${planType})`);
-
-      // When upgrading/downgrading, ALWAYS reset swipes to 0
-      // This gives the user a fresh start with their new plan
-      const updateData = {
+      await subscriptionRef.update({
         ...subscriptionData,
-        swipesUsedToday: 0, // Always reset on new subscription payment
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-
-      console.log("  • Resetting swipesUsedToday to 0 (new payment)");
-      console.log("  • New swipe limit:", swipesLimit);
-
-      await subscriptionRef.update(updateData);
+      });
 
       console.log("  ✅ Subscription UPDATED!");
-      console.log("  • Previous swipes used:", previousData?.swipesUsedToday || 0);
-      console.log("  • New swipes used: 0 (reset)");
+      console.log("  • New swipe limit:", swipesLimit);
     } else {
       console.log("  • Action: CREATING new subscription");
 
@@ -1124,92 +970,4 @@ export const checkExpiredSubscriptions = functions.pubsub
     console.log("✅ Expired subscriptions downgraded to free tier");
 
     return null;
-  });
-
-/**
- * Scheduled function to reset daily swipes for all users (runs at midnight)
- * This ensures that users who don't open the app still get their swipes reset
- */
-export const resetDailySwipes = functions.pubsub
-  .schedule("0 0 * * *") // Run at midnight every day
-  .timeZone("Asia/Kolkata") // Set to India timezone (IST)
-  .onRun(async (context) => {
-    console.log("🔄 Starting daily swipe reset for all users...");
-    console.log("⏰ Execution time:", new Date().toISOString());
-
-    try {
-      // Get the subscription config to know the free tier swipe limit
-      const configDoc = await admin.firestore()
-        .collection("subscriptionConfig")
-        .doc("default")
-        .get();
-
-      const freeSwipeLimit = configDoc.exists
-        ? (configDoc.data()?.freeTrialSwipeLimit || 5)
-        : 5;
-
-      console.log(`📊 Free tier swipe limit: ${freeSwipeLimit}`);
-
-      // Get all user subscriptions (both free and premium)
-      const allSubscriptions = await admin.firestore()
-        .collection("userSubscriptions")
-        .get();
-
-      console.log(`👥 Found ${allSubscriptions.size} total users`);
-
-      let resetCount = 0;
-      let batchCount = 0;
-      let batch = admin.firestore().batch();
-      const BATCH_SIZE = 500; // Firestore batch limit
-
-      for (const doc of allSubscriptions.docs) {
-        const data = doc.data();
-        const lastSwipeDate = data.lastSwipeDate?.toDate();
-        const now = new Date();
-
-        // Check if it's a different day (same logic as shouldResetSwipeCount)
-        const shouldReset = !lastSwipeDate || (
-          now.getFullYear() !== lastSwipeDate.getFullYear() ||
-          now.getMonth() !== lastSwipeDate.getMonth() ||
-          now.getDate() !== lastSwipeDate.getDate()
-        );
-
-        if (shouldReset && data.swipesUsedToday > 0) {
-          // Reset swipes for this user
-          batch.update(doc.ref, {
-            swipesUsedToday: 0,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-
-          resetCount++;
-          batchCount++;
-
-          // Commit batch if we reach the limit
-          if (batchCount >= BATCH_SIZE) {
-            await batch.commit();
-            console.log(`   ✅ Committed batch of ${batchCount} updates`);
-            batch = admin.firestore().batch();
-            batchCount = 0;
-          }
-        }
-      }
-
-      // Commit any remaining updates
-      if (batchCount > 0) {
-        await batch.commit();
-        console.log(`   ✅ Committed final batch of ${batchCount} updates`);
-      }
-
-      console.log("✅ Daily swipe reset complete!");
-      console.log(`   • Total users: ${allSubscriptions.size}`);
-      console.log(`   • Users reset: ${resetCount}`);
-      console.log(`   • Users skipped (already at 0 or same day): ${allSubscriptions.size - resetCount}`);
-
-      return null;
-    } catch (error: any) {
-      console.error("❌ Error during daily swipe reset:", error);
-      console.error("   • Error message:", error.message);
-      console.error("   • Error stack:", error.stack);
-      throw error; // Re-throw to mark function execution as failed
-    }
   });

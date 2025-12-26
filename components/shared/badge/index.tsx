@@ -36,6 +36,15 @@ export const LocationBadge = ({
   distance: number | string;
   size?: "sm" | "lg";
 }) => {
+  // Format distance to always show 2-3 digits by removing the last digit
+  const formatDistance = (dist: number | string): number => {
+    const numDist = typeof dist === "string" ? parseFloat(dist) : dist;
+    // Divide by 10 and round to get 2-3 digit number
+    return Math.round(numDist / 10);
+  };
+
+  const formattedDistance = formatDistance(distance);
+
   return (
     <Box className="border border-[#D5D4D466] rounded-full flex flex-row items-center justify-center gap-x-1 px-2 py-1">
       <Icon as={LocationIcon} className="w-2.5 h-2.5 text-typography-700" />
@@ -45,7 +54,7 @@ export const LocationBadge = ({
           size === "lg" ? "text-sm" : ""
         }`}
       >
-        {distance} km away
+        {formattedDistance} km away
       </Text>
     </Box>
   );
