@@ -38,41 +38,69 @@ export const createInstamojoTransaction = async (
   amount: number
 ): Promise<string> => {
   try {
+    console.log('📝 Starting transaction creation...');
+    console.log('  • User ID:', userId);
+    console.log('  • Plan ID:', planId);
+    console.log('  • Amount:', amount);
+
     const auth = getAuth();
     const user = auth.currentUser;
 
     if (!user) {
+      console.error('❌ User not authenticated');
       throw new Error('User not authenticated');
     }
 
+    console.log('  • Auth user ID:', user.uid);
+    console.log('  • Auth user phone:', user.phoneNumber);
+
     // Get user details from Firestore
+    console.log('  • Fetching user document from Firestore...');
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (!userDoc.exists()) {
+      console.error('❌ User document not found in Firestore');
       throw new Error('User not found');
     }
 
     const userData = userDoc.data();
     const phoneNumber = userData.phoneNumber || '';
     const name = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User';
+    console.log('  • User name:', name);
+    console.log('  • User phone:', phoneNumber);
 
-    // Get plan details
-    const planDoc = await getDoc(doc(db, 'subscriptionPlans', planId));
-    if (!planDoc.exists()) {
-      throw new Error('Plan not found');
+    // Get plan details from subscriptionPlans/plans document
+    console.log('  • Fetching plan details from Firestore...');
+    const plansDoc = await getDoc(doc(db, 'subscriptionPlans', 'plans'));
+    if (!plansDoc.exists()) {
+      console.error('❌ Subscription plans document not found');
+      throw new Error('Subscription plans not configured');
     }
 
-    const planData = planDoc.data();
+    const allPlans = plansDoc.data();
+    console.log('  • Plans document found, extracting plan:', planId);
+    const planData = allPlans?.[planId];
+
+    if (!planData) {
+      console.error('❌ Plan not found in plans document');
+      console.error('  • Available plans:', Object.keys(allPlans || {}));
+      throw new Error(`Plan '${planId}' not found in subscription plans`);
+    }
+
+    console.log('  • Plan found:', planData.name || planData.displayName);
 
     // Generate a unique order ID
     const orderId = `ORDER_${Date.now()}_${userId.substring(0, 8)}`;
+    console.log('  • Generated order ID:', orderId);
 
     // Create transaction record
-    const transactionRef = await addDoc(collection(db, 'transactions'), {
+    console.log('  • Creating transaction document in Firestore...');
+    const transactionData = {
       userId,
       userEmail: user.email || '',
       userName: name,
       userPhone: phoneNumber,
       planId,
+      planType: planId, // Add planType for webhook compatibility
       planName: planData.name || planId,
       amount,
       currency: 'INR',
@@ -81,12 +109,23 @@ export const createInstamojoTransaction = async (
       status: PaymentStatus.PENDING,
       createdAt: serverTimestamp(),
       completedAt: null,
-    });
+    };
 
-    console.log('✅ Transaction created:', transactionRef.id);
+    console.log('  • Transaction data:', JSON.stringify(transactionData, null, 2));
+
+    const transactionRef = await addDoc(collection(db, 'transactions'), transactionData);
+
+    console.log('✅ Transaction created successfully!');
+    console.log('  • Transaction ID:', transactionRef.id);
+    console.log('  • Collection path: transactions/' + transactionRef.id);
+    console.log('  • Status: PENDING');
+    console.log('  • Provider: instamojo');
+
     return transactionRef.id;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error creating transaction:', error);
+    console.error('  • Error message:', error.message);
+    console.error('  • Error stack:', error.stack);
     throw error;
   }
 };

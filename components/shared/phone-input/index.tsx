@@ -88,9 +88,9 @@ export const PhoneInput = ({
           }}
         >
           <SelectTrigger variant="outline" size="lg" className="rounded-lg bg-transparent">
-            <SelectInput placeholder="_ _" className="py-0 text-typography-50" />
+            <SelectInput placeholder="_ _" className="py-0 text-typography-900" />
             <SelectIcon
-              className="mr-3 absolute right-0 text-typography-50"
+              className="mr-3 absolute right-0 text-typography-900"
               as={ChevronDownIcon}
             />
           </SelectTrigger>
@@ -125,7 +125,7 @@ export const PhoneInput = ({
             onChangeText={handlePhoneChange}
             maxLength={10}
             returnKeyType="default"
-            className="text-typography-50"
+            className="text-typography-900"
             // autoFocus={false}
             // onEndEditing={() => Keyboard.dismiss()}
           />

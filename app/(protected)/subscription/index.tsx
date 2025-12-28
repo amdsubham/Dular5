@@ -94,6 +94,9 @@ export default function SubscriptionPage() {
   }, []);
 
   const handleSelectPlan = (plan: SubscriptionPlan) => {
+    console.log("🔘 Plan selected:", plan.id, plan.displayName);
+    console.log("📋 Current subscription:", subscription?.currentPlan);
+
     // Check if user is already on this plan
     if (subscription?.currentPlan === plan.id) {
       Alert.alert(
@@ -105,19 +108,31 @@ export default function SubscriptionPage() {
     }
 
     // Open payment modal
+    console.log("🔓 Opening payment modal...");
     setSelectedPlan(plan);
     setShowPaymentModal(true);
+    console.log("✅ Modal state updated - showPaymentModal: true, selectedPlan:", plan.id);
   };
 
   const handlePaymentSuccess = async () => {
     console.log("✅ handlePaymentSuccess called");
-    setShowPaymentModal(false);
-    setSelectedPlan(null);
 
-    // Refresh subscription data to ensure UI updates
+    // IMPORTANT: Refresh subscription data FIRST before closing modal
+    // This ensures the UI has the latest data (swipesUsedToday reset to 0)
     console.log("🔄 Refreshing subscription data after successful payment...");
     await refreshSubscription();
     console.log("✅ Subscription data refreshed");
+
+    // Log the updated subscription state for debugging
+    console.log("📊 Updated subscription state:");
+    console.log("   • Current Plan:", subscription?.currentPlan);
+    console.log("   • Swipes Used:", subscription?.swipesUsedToday);
+    console.log("   • Swipes Limit:", subscription?.swipesLimit);
+    console.log("   • Can Swipe:", swipesUsedToday < swipesLimit);
+
+    // Now close the modal
+    setShowPaymentModal(false);
+    setSelectedPlan(null);
 
     // Show success message
     Alert.alert(
@@ -127,7 +142,7 @@ export default function SubscriptionPage() {
         {
           text: "Great!",
           onPress: () => {
-            // Optionally navigate back or refresh
+            // Navigate back to previous screen
             router.back();
           },
         },

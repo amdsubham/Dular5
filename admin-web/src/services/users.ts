@@ -62,7 +62,49 @@ export const updateUser = async (userId: string, data: Partial<UserProfile>): Pr
 
 export const deleteUser = async (userId: string): Promise<void> => {
   try {
+    console.log('Deleting user and related data:', userId);
+
+    // Delete user's subscription if exists
+    try {
+      const subscriptionRef = doc(db, 'userSubscriptions', userId);
+      const subscriptionDoc = await getDoc(subscriptionRef);
+      if (subscriptionDoc.exists()) {
+        await deleteDoc(subscriptionRef);
+        console.log('Deleted user subscription');
+      }
+    } catch (error) {
+      console.warn('Error deleting subscription:', error);
+    }
+
+    // Delete user's swipes
+    try {
+      const swipesRef = collection(db, 'swipes');
+      const swipesQuery = query(swipesRef, where('swiperId', '==', userId));
+      const swipesSnapshot = await getDocs(swipesQuery);
+
+      const deletePromises = swipesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      console.log(`Deleted ${swipesSnapshot.docs.length} swipes`);
+    } catch (error) {
+      console.warn('Error deleting swipes:', error);
+    }
+
+    // Delete user's transactions
+    try {
+      const transactionsRef = collection(db, 'transactions');
+      const transactionsQuery = query(transactionsRef, where('userId', '==', userId));
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+
+      const deletePromises = transactionsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      console.log(`Deleted ${transactionsSnapshot.docs.length} transactions`);
+    } catch (error) {
+      console.warn('Error deleting transactions:', error);
+    }
+
+    // Delete user document last
     await deleteDoc(doc(db, 'users', userId));
+    console.log('Deleted user document');
   } catch (error) {
     console.error('Error deleting user:', error);
     throw error;
@@ -99,18 +141,31 @@ export const filterUsers = async (filters: UserFilters): Promise<UserProfile[]> 
 
     // Apply search filter
     if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      users = users.filter(user => {
-        const firstName = user.onboarding?.data?.firstName || user.firstName || '';
-        const lastName = user.onboarding?.data?.lastName || user.lastName || '';
-        const email = user.email || '';
-        const phone = user.phoneNumber || '';
+      const searchLower = filters.search.toLowerCase().trim();
+      console.log('Searching for:', searchLower);
 
-        return firstName.toLowerCase().includes(searchLower) ||
-               lastName.toLowerCase().includes(searchLower) ||
-               email.toLowerCase().includes(searchLower) ||
-               phone.includes(searchLower);
+      users = users.filter(user => {
+        const firstName = (user.onboarding?.data?.firstName || user.firstName || '').toLowerCase();
+        const lastName = (user.onboarding?.data?.lastName || user.lastName || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        const email = (user.email || '').toLowerCase();
+        const phone = (user.phoneNumber || '').replace(/\D/g, ''); // Remove non-digits for phone search
+        const searchPhone = searchLower.replace(/\D/g, '');
+
+        const matches = firstName.includes(searchLower) ||
+               lastName.includes(searchLower) ||
+               fullName.includes(searchLower) ||
+               email.includes(searchLower) ||
+               (searchPhone && phone.includes(searchPhone));
+
+        if (matches) {
+          console.log('Search match found:', { firstName, lastName, email, phone });
+        }
+
+        return matches;
       });
+
+      console.log(`Search results: ${users.length} users found`);
     }
 
     // Apply date filters
@@ -206,10 +261,16 @@ export const getUserStats = async () => {
 
     const deleteRequests = users.filter(user => user.userAskedToDelete === 'yes');
 
+    // Get subscription count from userSubscriptions collection
+    const subscriptionsRef = collection(db, 'userSubscriptions');
+    const premiumQuery = query(subscriptionsRef, where('isPremium', '==', true));
+    const subscriptionsSnapshot = await getDocs(premiumQuery);
+
     return {
       total: users.length,
       today: todayUsers.length,
-      deleteRequests: deleteRequests.length
+      deleteRequests: deleteRequests.length,
+      subscriptions: subscriptionsSnapshot.size
     };
   } catch (error) {
     console.error('Error getting user stats:', error);

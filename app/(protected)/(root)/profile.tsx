@@ -71,7 +71,7 @@ function ProfileCard() {
   const age = profile?.dob ? calculateAge(profile.dob) : null;
   const displayName = age ? `${fullName || "User"}, ${age}` : fullName || "User";
   const mainProfilePicture = profile?.pictures?.[0] || null;
-  const planDisplayName = subscription?.planName || subscription?.currentPlan?.toUpperCase() || "Premium";
+  const planDisplayName = subscription?.currentPlan?.toUpperCase() || "Premium";
 
   return (
     <Box className="bg-background-50 rounded-2xl p-5 mt-6">
@@ -145,7 +145,7 @@ function ActiveSubscriptionCard() {
     ? "Weekly Plan"
     : currentPlan === "monthly"
     ? "Monthly Plan"
-    : subscription.planName || currentPlan.toUpperCase();
+    : currentPlan.toUpperCase();
 
   // Always show Monthly Plan as upgrade option (unless user is already on monthly)
   const nextPlan = currentPlan !== "monthly"
@@ -158,11 +158,27 @@ function ActiveSubscriptionCard() {
     : null;
 
   // Get plan-specific swipes limit
+  // Handle cases where swipesLimit might be undefined, null, or 0
+  // For weekly plan, default to 100 swipes if not set
+  // For daily plan, default to 50 swipes if not set
+  let effectiveSwipesLimit = swipesLimit || 0;
+
+  // Apply plan-specific defaults if swipesLimit is missing or 0
+  if (effectiveSwipesLimit === 0) {
+    if (currentPlan === "weekly") {
+      effectiveSwipesLimit = 100;
+    } else if (currentPlan === "daily") {
+      effectiveSwipesLimit = 50;
+    }
+  }
+
   const swipesText = currentPlan === "monthly"
     ? "Unlimited swipes"
-    : swipesLimit === 999999
+    : effectiveSwipesLimit === 999999 || effectiveSwipesLimit === -1
     ? "Unlimited swipes"
-    : `${swipesLimit} swipes per day`;
+    : effectiveSwipesLimit > 0
+    ? `${effectiveSwipesLimit} swipes per day`
+    : "Swipes per day";
 
   return (
     <VStack className="mt-6 mb-4 gap-4">
@@ -315,9 +331,9 @@ function PremiumUpgradeCard() {
     isPremium,
     subscription: subscription ? {
       currentPlan: subscription.currentPlan,
-      planName: subscription.planName,
       isActive: subscription.isActive,
       isPremium: subscription.isPremium,
+      swipesLimit: subscription.swipesLimit,
     } : null,
     swipesLimit,
     swipesRemaining,

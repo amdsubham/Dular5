@@ -1,26 +1,10 @@
-import Vexo from 'vexo-analytics';
 import { auth } from "@/config/firebase";
-
-// Initialize Vexo Analytics
-// IMPORTANT: Configure your Vexo API key in the .env file
-// See VEXO_QUICK_START.md for setup instructions
-// Get your API key from https://vexo.co dashboard
-const VEXO_API_KEY =
-  process.env.EXPO_PUBLIC_VEXO_API_KEY || "YOUR_VEXO_API_KEY";
-
-if (!process.env.EXPO_PUBLIC_VEXO_API_KEY && __DEV__) {
-  console.warn(
-    "⚠️ Vexo API key not configured! Add EXPO_PUBLIC_VEXO_API_KEY to .env file"
-  );
-  console.warn("📖 See VEXO_QUICK_START.md for setup instructions");
-}
 
 class AnalyticsService {
   private initialized: boolean = false;
-  private vexo: any = null;
 
   /**
-   * Initialize Vexo Analytics
+   * Initialize Analytics (placeholder for future analytics implementation)
    */
   async initialize() {
     if (this.initialized) {
@@ -28,14 +12,8 @@ class AnalyticsService {
     }
 
     try {
-      this.vexo = new Vexo({
-        apiKey: VEXO_API_KEY,
-        debug: __DEV__, // Enable debug mode in development
-        autoTrack: true, // Automatically track screen views
-      });
-
       this.initialized = true;
-      console.log("✅ Vexo Analytics initialized successfully");
+      console.log("✅ Analytics initialized successfully");
 
       // Try to identify user if already authenticated
       const currentUser = auth.currentUser;
@@ -45,7 +23,7 @@ class AnalyticsService {
         });
       }
     } catch (error) {
-      console.error("❌ Failed to initialize Vexo Analytics:", error);
+      console.error("❌ Failed to initialize Analytics:", error);
     }
   }
 
@@ -53,19 +31,14 @@ class AnalyticsService {
    * Identify a user with their unique ID and properties
    */
   async identifyUser(userId: string, properties?: Record<string, any>) {
-    if (!this.vexo) {
-      console.warn("Vexo not initialized");
+    if (!this.initialized) {
+      console.warn("Analytics not initialized");
       return;
     }
 
     try {
-      await this.vexo.identify(userId, {
-        ...properties,
-        platform: "mobile",
-        app: "Dular",
-      });
-
-      console.log("User identified:", userId);
+      // Analytics implementation removed - add your preferred analytics service here
+      console.log("User identified:", userId, properties);
     } catch (error) {
       console.error("Failed to identify user:", error);
     }
@@ -75,17 +48,13 @@ class AnalyticsService {
    * Track a custom event
    */
   async track(eventName: string, properties?: Record<string, any>) {
-    if (!this.vexo) {
-      console.warn("Vexo not initialized, queuing event");
+    if (!this.initialized) {
+      console.warn("Analytics not initialized");
       return;
     }
 
     try {
-      await this.vexo.track(eventName, {
-        ...properties,
-        timestamp: new Date().toISOString(),
-      });
-
+      // Analytics implementation removed - add your preferred analytics service here
       console.log("Event tracked:", eventName, properties);
     } catch (error) {
       console.error("Failed to track event:", error);
@@ -96,18 +65,14 @@ class AnalyticsService {
    * Track a screen view
    */
   async trackScreen(screenName: string, properties?: Record<string, any>) {
-    if (!this.vexo) {
-      console.warn("Vexo not initialized");
+    if (!this.initialized) {
+      console.warn("Analytics not initialized");
       return;
     }
 
     try {
-      await this.vexo.screen(screenName, {
-        ...properties,
-        timestamp: new Date().toISOString(),
-      });
-
-      console.log("Screen tracked:", screenName);
+      // Analytics implementation removed - add your preferred analytics service here
+      console.log("Screen tracked:", screenName, properties);
     } catch (error) {
       console.error("Failed to track screen:", error);
     }
@@ -117,13 +82,13 @@ class AnalyticsService {
    * Update user properties
    */
   async updateUserProperties(properties: Record<string, any>) {
-    if (!this.vexo) {
-      console.warn("Vexo not initialized");
+    if (!this.initialized) {
+      console.warn("Analytics not initialized");
       return;
     }
 
     try {
-      await this.vexo.updateUserProperties(properties);
+      // Analytics implementation removed - add your preferred analytics service here
       console.log("User properties updated:", properties);
     } catch (error) {
       console.error("Failed to update user properties:", error);
@@ -167,11 +132,6 @@ class AnalyticsService {
     await this.track("user_logged_out", {
       userId,
     });
-
-    // Clear user identification
-    if (this.vexo) {
-      await this.vexo.reset();
-    }
   }
 
   /**
