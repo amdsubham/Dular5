@@ -71,10 +71,15 @@
       "Bash(firebase functions:log:*)",
       "Bash(npx firebase-tools functions:log:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(git remote add:*)",
-      "Bash(git branch:*)"
+      "Bash(npm --prefix functions run build)",
+      "Bash(head:*)",
+      "Bash(unzip:*)",
+      "Bash(/Users/subhamroutray/Library/Android/sdk/build-tools/*/aapt)",
+      "Bash(du:*)",
+      "Bash($ANDROID_HOME/build-tools/36.0.0/aapt:*)",
+      "Bash(npx firebase-tools functions:list)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []

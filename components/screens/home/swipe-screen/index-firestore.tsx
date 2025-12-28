@@ -368,11 +368,25 @@ const SwipeScreen = ({
   const handleSwipe = useCallback(
     async (action: "like" | "pass") => {
       // Check if user has swipes remaining
+      console.log('🎯 Swipe attempt - checking limit:');
+      console.log('   • canSwipe:', canSwipe);
+      console.log('   • subscription:', subscription ? {
+        currentPlan: subscription.currentPlan,
+        swipesUsedToday: subscription.swipesUsedToday,
+        swipesLimit: subscription.swipesLimit,
+        isPremium: subscription.isPremium,
+      } : 'null');
+      console.log('   • Computed: swipesUsedToday < swipesLimit =', subscription ? `${subscription.swipesUsedToday} < ${subscription.swipesLimit} = ${subscription.swipesUsedToday < subscription.swipesLimit}` : 'N/A');
+
       if (!canSwipe) {
-        console.log('🚫 Swipe limit reached, showing modal');
+        console.log('🚫 Swipe BLOCKED - limit reached, showing modal');
+        console.log('   • This should only happen if swipesUsedToday >= swipesLimit');
+        console.log('   • Current values: used=' + (subscription?.swipesUsedToday || 0) + ', limit=' + (subscription?.swipesLimit || 0));
         setIsSwipeLimitModalOpen(true);
         return; // Don't perform the swipe
       }
+
+      console.log('✅ Swipe ALLOWED - proceeding with', action);
 
       const currentUser = matches[currentIndex];
       if (currentUser) {

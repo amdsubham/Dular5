@@ -288,6 +288,8 @@ export interface UseSubscriptionReturn {
   // Swipe management
   canSwipe: boolean;
   swipesRemaining: number;
+  swipesUsedToday: number;
+  swipesLimit: number;
   incrementSwipe: () => Promise<void>;
 
   // Subscription actions

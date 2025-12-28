@@ -87,10 +87,10 @@ export const PhoneInput = ({
             }
           }}
         >
-          <SelectTrigger variant="outline" size="lg" className="rounded-lg">
-            <SelectInput placeholder="_ _" className="py-0" />
+          <SelectTrigger variant="outline" size="lg" className="rounded-lg bg-transparent">
+            <SelectInput placeholder="_ _" className="py-0 text-typography-900" />
             <SelectIcon
-              className="mr-3 absolute right-0"
+              className="mr-3 absolute right-0 text-typography-900"
               as={ChevronDownIcon}
             />
           </SelectTrigger>
@@ -112,18 +112,20 @@ export const PhoneInput = ({
         </Select>
 
         <Input
-          className="w-[76%] rounded-lg"
+          className="w-[76%] rounded-lg bg-transparent"
           isRequired
           variant="outline"
           size="lg"
         >
           <InputField
             placeholder="Enter phone number"
+            placeholderTextColor="#737373"
             keyboardType="number-pad"
             value={phoneNumber}
             onChangeText={handlePhoneChange}
             maxLength={10}
             returnKeyType="default"
+            className="text-typography-900"
             // autoFocus={false}
             // onEndEditing={() => Keyboard.dismiss()}
           />

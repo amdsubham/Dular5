@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { ScrollView, ActivityIndicator, TouchableOpacity, Alert, Platform } from "react-native";
+import { ScrollView, ActivityIndicator, TouchableOpacity, Alert } from "react-native";
 import { Box } from "@/components/ui/box";
 import { Text } from "@/components/ui/text";
 import { Heading } from "@/components/ui/heading";
@@ -17,25 +17,19 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getSubscriptionPlans } from "@/services/subscription";
+import { PaymentModal } from "@/components/screens/subscription/payment-modal/instamojo";
 import { SubscriptionPlan, formatPrice, getPlanDurationText } from "@/types/subscription";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { auth, db } from "@/config/firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import {
-  initializeGooglePlayBilling,
-  purchaseSubscription,
-  setupPurchaseListeners,
-  removePurchaseListeners,
-  restorePurchases,
-} from "@/services/google-play-subscription";
 
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 
 export default function SubscriptionPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState(false);
-  const [billingInitialized, setBillingInitialized] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const {
     subscription,
@@ -47,52 +41,8 @@ export default function SubscriptionPage() {
     refreshSubscription,
   } = useSubscription();
 
-  // Initialize Google Play Billing on component mount
+  // Update lastActive timestamp when page loads
   useEffect(() => {
-    const initBilling = async () => {
-      if (Platform.OS === 'android') {
-        const initialized = await initializeGooglePlayBilling();
-        setBillingInitialized(initialized);
-
-        if (!initialized) {
-          Alert.alert(
-            'Billing Not Available',
-            'Google Play Billing is not available. Please check your Google Play Services.',
-            [{ text: 'OK' }]
-          );
-        }
-      } else {
-        // iOS or other platforms
-        setBillingInitialized(false);
-      }
-    };
-
-    initBilling();
-
-    // Setup purchase listeners
-    setupPurchaseListeners(
-      (purchase) => {
-        console.log('✅ Purchase successful:', purchase);
-        setPurchasing(false);
-        refreshSubscription();
-
-        Alert.alert(
-          'Payment Successful! 🎉',
-          'Your subscription has been activated. Enjoy unlimited swipes!',
-          [{ text: 'Great!', onPress: () => router.back() }]
-        );
-      },
-      (error) => {
-        console.error('❌ Purchase error:', error);
-        setPurchasing(false);
-
-        if (error.code !== 'E_USER_CANCELLED') {
-          Alert.alert('Purchase Failed', error.message, [{ text: 'OK' }]);
-        }
-      }
-    );
-
-    // Update lastActive timestamp
     const updateLastActive = async () => {
       const currentUser = auth.currentUser;
       if (currentUser) {
@@ -108,11 +58,6 @@ export default function SubscriptionPage() {
     };
 
     updateLastActive();
-
-    // Cleanup on unmount
-    return () => {
-      removePurchaseListeners();
-    };
   }, []);
 
   // Load subscription plans
@@ -148,7 +93,10 @@ export default function SubscriptionPage() {
     loadPlans();
   }, []);
 
-  const handleSelectPlan = async (plan: SubscriptionPlan) => {
+  const handleSelectPlan = (plan: SubscriptionPlan) => {
+    console.log("🔘 Plan selected:", plan.id, plan.displayName);
+    console.log("📋 Current subscription:", subscription?.currentPlan);
+
     // Check if user is already on this plan
     if (subscription?.currentPlan === plan.id) {
       Alert.alert(
@@ -159,53 +107,58 @@ export default function SubscriptionPage() {
       return;
     }
 
-    // Check if on Android
-    if (Platform.OS !== 'android') {
-      Alert.alert(
-        'Not Available',
-        'Google Play Billing is only available on Android devices. Please use an Android device to purchase subscriptions.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    // Check if billing is initialized
-    if (!billingInitialized) {
-      Alert.alert(
-        'Billing Not Ready',
-        'Google Play Billing is not initialized. Please restart the app and try again.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    // Start purchase
-    setPurchasing(true);
-
-    try {
-      const success = await purchaseSubscription(plan.id as 'daily' | 'weekly' | 'monthly');
-
-      if (!success) {
-        setPurchasing(false);
-      }
-      // Note: Success handling is done in the purchase listener
-    } catch (error: any) {
-      console.error('Error initiating purchase:', error);
-      setPurchasing(false);
-      Alert.alert('Error', 'Failed to initiate purchase. Please try again.', [{ text: 'OK' }]);
-    }
+    // Open payment modal
+    console.log("🔓 Opening payment modal...");
+    setSelectedPlan(plan);
+    setShowPaymentModal(true);
+    console.log("✅ Modal state updated - showPaymentModal: true, selectedPlan:", plan.id);
   };
 
-  const handleRestorePurchases = async () => {
-    if (Platform.OS !== 'android') {
-      Alert.alert('Not Available', 'This feature is only available on Android devices.', [{ text: 'OK' }]);
-      return;
-    }
+  const handlePaymentSuccess = async () => {
+    console.log("✅ handlePaymentSuccess called");
 
-    setPurchasing(true);
-    await restorePurchases();
-    setPurchasing(false);
-    refreshSubscription();
+    // IMPORTANT: Refresh subscription data FIRST before closing modal
+    // This ensures the UI has the latest data (swipesUsedToday reset to 0)
+    console.log("🔄 Refreshing subscription data after successful payment...");
+    await refreshSubscription();
+    console.log("✅ Subscription data refreshed");
+
+    // Log the updated subscription state for debugging
+    console.log("📊 Updated subscription state:");
+    console.log("   • Current Plan:", subscription?.currentPlan);
+    console.log("   • Swipes Used:", subscription?.swipesUsedToday);
+    console.log("   • Swipes Limit:", subscription?.swipesLimit);
+    console.log("   • Can Swipe:", swipesUsedToday < swipesLimit);
+
+    // Now close the modal
+    setShowPaymentModal(false);
+    setSelectedPlan(null);
+
+    // Show success message
+    Alert.alert(
+      "Payment Successful! 🎉",
+      "Your subscription has been activated. Enjoy unlimited swipes!",
+      [
+        {
+          text: "Great!",
+          onPress: () => {
+            // Navigate back to previous screen
+            router.back();
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePaymentError = (error: string) => {
+    setShowPaymentModal(false);
+
+    // Show error message
+    Alert.alert(
+      "Payment Failed",
+      error || "Something went wrong. Please try again.",
+      [{ text: "OK" }]
+    );
   };
 
   if (loading) {
@@ -387,10 +340,9 @@ export default function SubscriptionPage() {
                         }`}
                         size="lg"
                         onPress={() => handleSelectPlan(plan)}
-                        disabled={purchasing || subscription?.currentPlan === plan.id}
                       >
                         <ButtonText className="font-semibold font-roboto">
-                          {purchasing ? "Processing..." : subscription?.currentPlan === plan.id ? "Current Plan" : "Select Plan"}
+                          {subscription?.currentPlan === plan.id ? "Current Plan" : "Select Plan"}
                         </ButtonText>
                       </Button>
                     </VStack>
@@ -433,21 +385,6 @@ export default function SubscriptionPage() {
             </VStack>
           </AnimatedBox>
 
-          {/* Restore Purchases Button */}
-          {Platform.OS === 'android' && (
-            <Box className="items-center mt-4">
-              <Button
-                variant="link"
-                onPress={handleRestorePurchases}
-                disabled={purchasing}
-              >
-                <ButtonText className="text-primary-500 font-roboto underline">
-                  Restore Purchases
-                </ButtonText>
-              </Button>
-            </Box>
-          )}
-
           {/* FAQ or Support Link */}
           <Box className="items-center">
             <Text className="text-typography-500 text-sm text-center font-roboto">
@@ -456,6 +393,18 @@ export default function SubscriptionPage() {
           </Box>
         </VStack>
       </ScrollView>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        visible={showPaymentModal}
+        plan={selectedPlan}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setSelectedPlan(null);
+        }}
+        onSuccess={handlePaymentSuccess}
+        onError={handlePaymentError}
+      />
     </Box>
   );
 }
