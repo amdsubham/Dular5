@@ -21,6 +21,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSubscription } from "@/hooks/useSubscription";
 import { VStack } from "@/components/ui/vstack";
 import { HStack } from "@/components/ui/hstack";
+import { analytics } from "@/services/analytics";
 
 function Header() {
   return (
@@ -117,7 +118,13 @@ function ProfileCard() {
             size="sm"
             variant="outline"
             className="self-start border-background-300"
-            onPress={() => router.push("/(protected)/edit-profile")}
+            onPress={() => {
+              analytics.track("edit_profile_clicked", {
+                from_screen: "profile",
+                is_premium: isPremium,
+              });
+              router.push("/(protected)/edit-profile");
+            }}
           >
             <ButtonIcon as={EditIcon} className="text-typography-700 mr-1" size="xs" />
             <ButtonText className="text-typography-950 font-roboto text-sm">
@@ -185,7 +192,15 @@ function ActiveSubscriptionCard() {
       {/* Current Active Plan Card */}
       <TouchableOpacity
         activeOpacity={0.8}
-        onPress={() => router.push("/(protected)/subscription")}
+        onPress={() => {
+          analytics.track("subscription_card_clicked", {
+            from_screen: "profile",
+            current_plan: currentPlan,
+            swipes_remaining: swipesRemaining,
+            days_remaining: daysRemaining,
+          });
+          router.push("/(protected)/subscription");
+        }}
       >
         <LinearGradient
           colors={["#4CAF50", "#2E7D32", "#1B5E20"]}
@@ -452,6 +467,11 @@ function ProfileOptions() {
   const router = useRouter();
 
   const handleLogout = async () => {
+    // Track logout attempt
+    analytics.track("logout_clicked", {
+      from_screen: "profile",
+    });
+
     Alert.alert(
       "Logout",
       "Are you sure you want to logout?",
@@ -459,12 +479,17 @@ function ProfileOptions() {
         {
           text: "Cancel",
           style: "cancel",
+          onPress: () => {
+            analytics.track("logout_cancelled");
+          },
         },
         {
           text: "Logout",
           style: "destructive",
           onPress: async () => {
             try {
+              // Track logout without importing auth to avoid type issues
+              await analytics.track("user_logged_out", {});
               await signOut();
               router.replace("/(auth)");
             } catch (error) {

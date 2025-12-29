@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { getUserPreferences } from '@/services/matching';
+import { analytics } from '@/services/analytics';
 
 export interface FilterState {
   minAge: number;
@@ -56,6 +57,9 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
 
   const updateFilters = (newFilters: Partial<FilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
+
+    // Track filter updates
+    analytics.trackFilterUsage(newFilters);
   };
 
   const resetFilters = () => {

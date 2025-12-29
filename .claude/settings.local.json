@@ -79,7 +79,10 @@
       "Bash($ANDROID_HOME/build-tools/36.0.0/aapt:*)",
       "Bash(npx firebase-tools functions:list)",
       "Bash(git checkout:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Update to version 14.0.0 with subscription fixes and Vexo analytics\n\n- Update app version to 14.0.0 \\(from 13.0.0\\)\n- Update Android versionCode to 14 and versionName to \"14.0.0\"\n- Fix weekly plan showing \"undefined swipes per day\" in account section\n  - Added swipesLimit and swipesUsedToday to UseSubscriptionReturn interface\n  - Updated useSubscription hook to properly expose these values\n  - Added plan-specific default values \\(weekly: 100, daily: 50 swipes\\)\n  - Improved handling of missing or undefined swipesLimit data\n- Integrate Vexo Analytics for user tracking and analytics\n- Add Instamojo payment integration improvements\n- Update subscription context with better real-time sync\n- Remove references to non-existent planName property\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Update to version 16.0.0\n\n- Update app version to 16.0.0 \\(from 15.0.0\\)\n- Update Android versionCode to 16 and versionName to \"16.0.0\"\n- Maintain AD_ID permission removal for Google Play compliance\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ],
     "deny": [],
     "ask": []

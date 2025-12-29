@@ -22,6 +22,8 @@ import { SubscriptionPlan, formatPrice, getPlanDurationText } from "@/types/subs
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { auth, db } from "@/config/firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { useAnalytics } from "@/contexts/AnalyticsContext";
+import { analytics } from "@/services/analytics";
 
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 
@@ -30,6 +32,7 @@ export default function SubscriptionPage() {
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const { trackEvent } = useAnalytics();
 
   const {
     subscription,
@@ -58,6 +61,15 @@ export default function SubscriptionPage() {
     };
 
     updateLastActive();
+
+    // Track subscription page view
+    analytics.trackSubscription("viewed");
+    trackEvent("subscription_page_viewed", {
+      current_plan: subscription?.currentPlan || "free",
+      is_premium: isPremium,
+      swipes_remaining: swipesRemaining,
+      days_remaining: daysRemaining,
+    });
   }, []);
 
   // Load subscription plans
@@ -97,6 +109,16 @@ export default function SubscriptionPage() {
     console.log("🔘 Plan selected:", plan.id, plan.displayName);
     console.log("📋 Current subscription:", subscription?.currentPlan);
 
+    // Track plan selection
+    trackEvent("subscription_plan_clicked", {
+      plan_id: plan.id,
+      plan_name: plan.displayName,
+      plan_price: plan.price,
+      plan_duration: plan.duration,
+      current_plan: subscription?.currentPlan || "free",
+      is_already_subscribed: subscription?.currentPlan === plan.id,
+    });
+
     // Check if user is already on this plan
     if (subscription?.currentPlan === plan.id) {
       Alert.alert(
@@ -107,6 +129,14 @@ export default function SubscriptionPage() {
       return;
     }
 
+    // Track payment modal open
+    analytics.trackSubscription("started", plan.id);
+    trackEvent("payment_modal_opened", {
+      plan_id: plan.id,
+      plan_name: plan.displayName,
+      plan_price: plan.price,
+    });
+
     // Open payment modal
     console.log("🔓 Opening payment modal...");
     setSelectedPlan(plan);
@@ -116,6 +146,18 @@ export default function SubscriptionPage() {
 
   const handlePaymentSuccess = async () => {
     console.log("✅ handlePaymentSuccess called");
+
+    // Track payment success
+    if (selectedPlan) {
+      analytics.trackSubscription("completed", selectedPlan.id);
+      analytics.trackPayment("success", selectedPlan.price, selectedPlan.id);
+      trackEvent("payment_success", {
+        plan_id: selectedPlan.id,
+        plan_name: selectedPlan.displayName,
+        plan_price: selectedPlan.price,
+        plan_duration: selectedPlan.duration,
+      });
+    }
 
     // IMPORTANT: Refresh subscription data FIRST before closing modal
     // This ensures the UI has the latest data (swipesUsedToday reset to 0)
@@ -151,6 +193,17 @@ export default function SubscriptionPage() {
   };
 
   const handlePaymentError = (error: string) => {
+    // Track payment failure
+    if (selectedPlan) {
+      analytics.trackPayment("failed", selectedPlan.price, selectedPlan.id);
+      trackEvent("payment_failed", {
+        plan_id: selectedPlan.id,
+        plan_name: selectedPlan.displayName,
+        plan_price: selectedPlan.price,
+        error_message: error,
+      });
+    }
+
     setShowPaymentModal(false);
 
     // Show error message

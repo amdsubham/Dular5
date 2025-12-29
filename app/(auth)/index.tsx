@@ -9,6 +9,7 @@ import { Fab, FabIcon } from "@/components/ui/fab";
 import { sendOTP } from "@/services/auth";
 import { Alert, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { analytics } from "@/services/analytics";
 
 const INSTRUCTIONS_TEXT = [
   { loginInstruction: "Please enter your mobile number" },
@@ -25,6 +26,9 @@ export default function Index() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
+    // Track login screen view
+    analytics.trackScreen("login_screen");
+
     const keyboardWillShow = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => setKeyboardHeight(e.endCoordinates.height)
@@ -62,6 +66,12 @@ export default function Index() {
 
       console.log("📝 Formatted phone:", formattedPhone);
 
+      // Track OTP request
+      analytics.track("otp_requested", {
+        phone_number_length: formattedPhone.length,
+        has_country_code: phoneNumber.includes("+"),
+      });
+
       // Store phone number in AsyncStorage
       await AsyncStorage.setItem('@dular:phone_number', formattedPhone);
       console.log("✅ Phone number stored in AsyncStorage");
@@ -74,6 +84,12 @@ export default function Index() {
       });
     } catch (error: any) {
       console.error("❌ Error processing phone number:", error);
+
+      // Track error
+      analytics.track("otp_request_failed", {
+        error_message: error.message,
+      });
+
       Alert.alert("Error", "Failed to process phone number. Please try again.");
     }
   };

@@ -10,6 +10,7 @@ import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
 import { Alert, ActivityIndicator } from "react-native";
 import { updateUserDeleteRequest } from "@/services/profile";
+import { analytics } from "@/services/analytics";
 
 const Header = () => {
   const router = useRouter();
@@ -33,7 +34,18 @@ export default function Settings() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  // Track settings page view
+  React.useEffect(() => {
+    analytics.trackScreen("settings_screen");
+    analytics.track("settings_viewed");
+  }, []);
+
   const handleDeleteAccount = () => {
+    // Track delete account attempt
+    analytics.track("delete_account_clicked", {
+      from_screen: "settings",
+    });
+
     Alert.alert(
       "Delete Account",
       "Are you sure you want to delete your account? This action will mark your account for deletion and our team will review your request.",
@@ -41,6 +53,9 @@ export default function Settings() {
         {
           text: "Cancel",
           style: "cancel",
+          onPress: () => {
+            analytics.track("delete_account_cancelled");
+          },
         },
         {
           text: "Delete",
@@ -49,6 +64,12 @@ export default function Settings() {
             try {
               setLoading(true);
               await updateUserDeleteRequest(true);
+
+              // Track successful deletion request
+              analytics.track("delete_account_requested", {
+                success: true,
+              });
+
               Alert.alert(
                 "Request Submitted",
                 "Your account deletion request has been submitted successfully. Your account will be reviewed and deleted within 48 hours. You can uninstall the app.",
@@ -61,6 +82,13 @@ export default function Settings() {
               );
             } catch (error: any) {
               console.error("Error requesting account deletion:", error);
+
+              // Track deletion request failure
+              analytics.track("delete_account_requested", {
+                success: false,
+                error: error.message,
+              });
+
               Alert.alert(
                 "Error",
                 "Failed to submit deletion request. Please try again."

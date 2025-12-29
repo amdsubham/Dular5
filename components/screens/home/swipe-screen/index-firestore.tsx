@@ -18,6 +18,7 @@ import { SwipeLimitModal } from "@/components/screens/home/swipe-limit-modal";
 import { fetchPotentialMatches, recordSwipeAction, MatchUser, MatchResult } from "@/services/matching";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ActivityIndicator } from "react-native";
+import { analytics } from "@/services/analytics";
 import Animated, {
   FadeIn,
   useAnimatedStyle,
@@ -382,6 +383,14 @@ const SwipeScreen = ({
         console.log('🚫 Swipe BLOCKED - limit reached, showing modal');
         console.log('   • This should only happen if swipesUsedToday >= swipesLimit');
         console.log('   • Current values: used=' + (subscription?.swipesUsedToday || 0) + ', limit=' + (subscription?.swipesLimit || 0));
+
+        // Track swipe limit reached
+        analytics.track("swipe_limit_reached", {
+          current_plan: subscription?.currentPlan || "free",
+          swipes_used: subscription?.swipesUsedToday || 0,
+          swipes_limit: subscription?.swipesLimit || 0,
+        });
+
         setIsSwipeLimitModalOpen(true);
         return; // Don't perform the swipe
       }
@@ -392,6 +401,15 @@ const SwipeScreen = ({
       if (currentUser) {
         try {
           console.log(`🔄 Recording swipe ${action} for user:`, currentUser.uid);
+
+          // Track swipe action
+          analytics.trackMatchAction(action === "like" ? "like" : "pass", currentUser.uid);
+          analytics.track("swipe_action", {
+            action: action,
+            swipes_remaining: swipesRemaining - 1,
+            current_plan: subscription?.currentPlan || "free",
+            is_premium: subscription?.isPremium || false,
+          });
 
           // Increment swipe count FIRST before recording the action
           await incrementSwipe();
@@ -408,6 +426,12 @@ const SwipeScreen = ({
               matchId: result.matchId,
               matchedUser: result.matchData.matchedUser,
               currentUser: result.matchData.currentUser,
+            });
+
+            // Track match
+            analytics.track("match_found", {
+              match_id: result.matchId,
+              matched_user_id: currentUser.uid,
             });
 
             const newMatchData = {
@@ -431,7 +455,12 @@ const SwipeScreen = ({
           }
         } catch (error) {
           console.error('❌ Error during swipe:', error);
-          // Optionally show an error message to the user
+
+          // Track swipe error
+          analytics.track("swipe_error", {
+            action: action,
+            error_message: error instanceof Error ? error.message : "Unknown error",
+          });
         }
       }
 
@@ -443,7 +472,7 @@ const SwipeScreen = ({
         return nextIndex;
       });
     },
-    [currentIndex, matches, canSwipe, incrementSwipe, swipesRemaining]
+    [currentIndex, matches, canSwipe, incrementSwipe, swipesRemaining, subscription]
   );
 
   const handleSetSwipeFunctions = useCallback(

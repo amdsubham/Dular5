@@ -1,10 +1,11 @@
 import { auth } from "@/config/firebase";
+import firebaseAnalytics from "@react-native-firebase/analytics";
 
 class AnalyticsService {
   private initialized: boolean = false;
 
   /**
-   * Initialize Analytics (placeholder for future analytics implementation)
+   * Initialize Analytics with Firebase Analytics
    */
   async initialize() {
     if (this.initialized) {
@@ -12,8 +13,11 @@ class AnalyticsService {
     }
 
     try {
+      // Enable analytics collection
+      await firebaseAnalytics().setAnalyticsCollectionEnabled(true);
+
       this.initialized = true;
-      console.log("✅ Analytics initialized successfully");
+      console.log("✅ Firebase Analytics initialized successfully");
 
       // Try to identify user if already authenticated
       const currentUser = auth.currentUser;
@@ -37,10 +41,21 @@ class AnalyticsService {
     }
 
     try {
-      // Analytics implementation removed - add your preferred analytics service here
-      console.log("User identified:", userId, properties);
+      // Set user ID for Firebase Analytics
+      await firebaseAnalytics().setUserId(userId);
+
+      // Set user properties
+      if (properties) {
+        for (const [key, value] of Object.entries(properties)) {
+          if (value !== null && value !== undefined) {
+            await firebaseAnalytics().setUserProperty(key, String(value));
+          }
+        }
+      }
+
+      console.log("✅ User identified:", userId, properties);
     } catch (error) {
-      console.error("Failed to identify user:", error);
+      console.error("❌ Failed to identify user:", error);
     }
   }
 
@@ -54,10 +69,16 @@ class AnalyticsService {
     }
 
     try {
-      // Analytics implementation removed - add your preferred analytics service here
-      console.log("Event tracked:", eventName, properties);
+      // Firebase Analytics has a 40 character limit for event names
+      const sanitizedEventName = eventName.substring(0, 40);
+
+      // Sanitize properties to match Firebase Analytics requirements
+      const sanitizedProperties = this.sanitizeProperties(properties);
+
+      await firebaseAnalytics().logEvent(sanitizedEventName, sanitizedProperties);
+      console.log("✅ Event tracked:", sanitizedEventName, sanitizedProperties);
     } catch (error) {
-      console.error("Failed to track event:", error);
+      console.error("❌ Failed to track event:", error);
     }
   }
 
@@ -71,10 +92,14 @@ class AnalyticsService {
     }
 
     try {
-      // Analytics implementation removed - add your preferred analytics service here
-      console.log("Screen tracked:", screenName, properties);
+      await firebaseAnalytics().logScreenView({
+        screen_name: screenName,
+        screen_class: screenName,
+        ...this.sanitizeProperties(properties),
+      });
+      console.log("✅ Screen tracked:", screenName, properties);
     } catch (error) {
-      console.error("Failed to track screen:", error);
+      console.error("❌ Failed to track screen:", error);
     }
   }
 
@@ -88,11 +113,45 @@ class AnalyticsService {
     }
 
     try {
-      // Analytics implementation removed - add your preferred analytics service here
-      console.log("User properties updated:", properties);
+      for (const [key, value] of Object.entries(properties)) {
+        if (value !== null && value !== undefined) {
+          await firebaseAnalytics().setUserProperty(key, String(value));
+        }
+      }
+      console.log("✅ User properties updated:", properties);
     } catch (error) {
-      console.error("Failed to update user properties:", error);
+      console.error("❌ Failed to update user properties:", error);
     }
+  }
+
+  /**
+   * Sanitize properties to match Firebase Analytics requirements
+   */
+  private sanitizeProperties(properties?: Record<string, any>): Record<string, any> {
+    if (!properties) {
+      return {};
+    }
+
+    const sanitized: Record<string, any> = {};
+
+    for (const [key, value] of Object.entries(properties)) {
+      // Firebase Analytics parameter names must be 40 characters or fewer
+      const sanitizedKey = key.substring(0, 40);
+
+      // Convert value to appropriate type
+      if (value === null || value === undefined) {
+        continue;
+      } else if (typeof value === 'string') {
+        sanitized[sanitizedKey] = value.substring(0, 100); // Limit string length
+      } else if (typeof value === 'number' || typeof value === 'boolean') {
+        sanitized[sanitizedKey] = value;
+      } else {
+        // Convert objects/arrays to JSON string
+        sanitized[sanitizedKey] = JSON.stringify(value).substring(0, 100);
+      }
+    }
+
+    return sanitized;
   }
 
   /**

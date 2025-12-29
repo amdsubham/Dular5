@@ -318,9 +318,10 @@ export const EditScreen = () => {
     return (
       <ScaleDecorator>
         <Pressable
+          onPress={() => !item && pickImage(index)}
           onLongPress={drag}
           delayLongPress={200}
-          disabled={!item}
+          disabled={isActive}
           className="w-[47%] aspect-square mb-2.5"
           style={{
             opacity: isActive ? 0.6 : 1,
