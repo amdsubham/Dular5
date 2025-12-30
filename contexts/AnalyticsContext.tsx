@@ -21,6 +21,10 @@ export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false);
   const sessionStartTime = useRef<Date | null>(null);
   const appState = useRef<AppStateStatus>(AppState.currentState);
+  const lastSessionEventTime = useRef<number>(0);
+
+  // Throttle session events to max once per 5 minutes to reduce costs
+  const SESSION_THROTTLE_MS = 5 * 60 * 1000;
 
   useEffect(() => {
     // Initialize analytics on mount
@@ -62,17 +66,33 @@ export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
   }, [isInitialized]);
 
   useEffect(() => {
-    // Track app state changes (foreground/background)
+    // Track app state changes (foreground/background) with throttling
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      const now = Date.now();
+      const timeSinceLastEvent = now - lastSessionEventTime.current;
+
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
         // App has come to the foreground
-        sessionStartTime.current = new Date();
-        await analytics.trackSessionStart();
+        // Only track if enough time has passed (5 minutes) or first session
+        if (timeSinceLastEvent >= SESSION_THROTTLE_MS || lastSessionEventTime.current === 0) {
+          sessionStartTime.current = new Date();
+          lastSessionEventTime.current = now;
+          await analytics.trackSessionStart();
+          console.log('✅ Session start tracked (throttled)');
+        } else {
+          console.log(`⏭️  Session start skipped - throttled (${Math.floor(timeSinceLastEvent / 1000)}s since last event)`);
+        }
       } else if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
         // App has gone to the background
         if (sessionStartTime.current) {
           const sessionDuration = new Date().getTime() - sessionStartTime.current.getTime();
-          await analytics.trackSessionEnd(Math.floor(sessionDuration / 1000)); // Duration in seconds
+          // Only track if session was at least 10 seconds (avoid quick app switches)
+          if (sessionDuration >= 10000) {
+            await analytics.trackSessionEnd(Math.floor(sessionDuration / 1000));
+            console.log(`✅ Session end tracked (${Math.floor(sessionDuration / 1000)}s)`);
+          } else {
+            console.log(`⏭️  Session end skipped - too short (${Math.floor(sessionDuration / 1000)}s)`);
+          }
         }
       }
 

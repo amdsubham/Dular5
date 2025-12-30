@@ -292,7 +292,18 @@ export const canUserSwipe = async (userId: string): Promise<boolean> => {
       // Downgrade to free plan if expired
       await downgradeToFreePlan(userId);
       const updatedSubscription = await getUserSubscription(userId);
-      return updatedSubscription ? updatedSubscription.swipesUsedToday < updatedSubscription.swipesLimit : false;
+      if (!updatedSubscription) return false;
+
+      // Handle unlimited swipes for downgraded subscription
+      if (updatedSubscription.swipesLimit === -1 || updatedSubscription.swipesLimit >= 999999) {
+        return true;
+      }
+      return updatedSubscription.swipesUsedToday < updatedSubscription.swipesLimit;
+    }
+
+    // Handle unlimited swipes (monthly plan with -1 or 999999)
+    if (subscription.swipesLimit === -1 || subscription.swipesLimit >= 999999) {
+      return true;
     }
 
     // Check if swipe count needs to be reset (new day)
@@ -316,6 +327,11 @@ export const getSwipesRemaining = async (userId: string): Promise<number> => {
   try {
     const subscription = await getUserSubscription(userId);
     if (!subscription) return 0;
+
+    // Handle unlimited swipes (represented as -1 or 999999)
+    if (subscription.swipesLimit === -1 || subscription.swipesLimit >= 999999) {
+      return 999999;
+    }
 
     // Check if swipe count needs to be reset (new day)
     if (shouldResetSwipeCount(subscription.lastSwipeDate)) {

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { FilterIcon } from "@/components/shared/icons";
 import { Box } from "@/components/ui/box";
+import { analytics } from "@/services/analytics";
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { SearchIcon, RepeatIcon, CloseIcon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
@@ -253,6 +255,13 @@ function MatchCard({
 
   const handlePress = () => {
     console.log('🔵 Match card pressed');
+
+    // Track match profile viewed
+    analytics.trackMatchProfileViewed(chat.id, otherUserId, {
+      user_name: userName,
+      is_online: isOnline,
+    });
+
     router.push({
       pathname: "/(protected)/chat/[id]" as any,
       params: {
@@ -408,6 +417,16 @@ export default function MatchesScreen() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showSearch, setShowSearch] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Track screen view when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      analytics.trackMatchListViewed(chats.length, {
+        filter_selected: selected,
+        users_who_liked_me: usersWhoLikedMe.length,
+      });
+    }, [chats.length, selected, usersWhoLikedMe.length])
+  );
 
   useEffect(() => {
     // Subscribe to chats for real-time updates

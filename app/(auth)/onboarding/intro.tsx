@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { ScrollView, KeyboardAvoidingView, Platform, Keyboard } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
 import {
@@ -14,12 +14,21 @@ import { ChevronRightIcon } from "@/components/ui/icon";
 import { Fab, FabIcon } from "@/components/ui/fab";
 import { Textarea, TextareaInput } from "@/components/ui/textarea";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { analytics } from "@/services/analytics";
 
 const intro = () => {
   const [textValue, setTextValue] = useState("");
   const [wordCount, setWordCount] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const insets = useSafeAreaInsets();
+
+  // Track screen view
+  useFocusEffect(
+    React.useCallback(() => {
+      analytics.trackScreen("Onboarding_Intro");
+      analytics.trackOnboardingStep("intro", false);
+    }, [])
+  );
 
   useEffect(() => {
     const words = textValue.trim() ? textValue.trim().split(/\s+/) : [];

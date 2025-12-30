@@ -44,22 +44,35 @@ export const getUserPreferences = async (): Promise<{
 } | null> => {
   try {
     const user = getCurrentUser();
-    if (!user) return null;
+    if (!user) {
+      console.log('❌ getUserPreferences: No authenticated user');
+      return null;
+    }
 
     const userDoc = await getDoc(doc(db, 'users', user.uid));
-    if (!userDoc.exists()) return null;
+    if (!userDoc.exists()) {
+      console.log('❌ getUserPreferences: User document does not exist');
+      return null;
+    }
 
     const data = userDoc.data();
     const onboardingData = data.onboarding?.data || {};
 
-    return {
+    console.log('📊 getUserPreferences: Raw onboarding data:', onboardingData);
+    console.log('   • interestedIn:', onboardingData.interestedIn);
+    console.log('   • lookingFor:', onboardingData.lookingFor);
+
+    const preferences = {
       gender: onboardingData.gender || '',
       interestedIn: onboardingData.interestedIn || [],
       lookingFor: onboardingData.lookingFor || [],
       location: data.location || null,
     };
+
+    console.log('✅ getUserPreferences: Returning preferences:', preferences);
+    return preferences;
   } catch (error) {
-    console.error('Error getting user preferences:', error);
+    console.error('❌ getUserPreferences: Error:', error);
     return null;
   }
 };

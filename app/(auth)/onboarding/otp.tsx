@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Box } from "@/components/ui/box";
+import { analytics } from "@/services/analytics";
 import { Text } from "@/components/ui/text";
 import { OTPComponent } from "@/components/shared/otp-input";
 import { ChevronRightIcon } from "@/components/ui/icon";
@@ -196,6 +197,12 @@ export default function Otp() {
 
       if (result.success) {
         console.log('✅ OTP verification successful');
+
+        // Track OTP verified
+        analytics.trackOtpVerified({
+          phone_number_length: (params.phoneNumber as string)?.length || 0,
+        });
+
         router.push("/(auth)/onboarding/verified");
       } else {
         console.error('❌ OTP verification failed:', result.error);

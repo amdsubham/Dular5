@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollView } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
+import { analytics } from "@/services/analytics";
 import { Progress } from "@/components/ui/progress";
 import { Box } from "@/components/ui/box";
 import { Heading } from "@/components/ui/heading";
@@ -76,6 +77,10 @@ const interests = () => {
       await updateOnboardingProgress("interests", {
         interests: selectedInterests,
       });
+
+      // Track interests selected
+      analytics.trackInterestsSelected(selectedInterests);
+
       router.push("/(auth)/onboarding/location");
     } else {
       Alert.alert("Required", "Please select at least one interest to continue.");

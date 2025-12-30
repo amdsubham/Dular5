@@ -4,6 +4,7 @@ import { ScrollView } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
 import { FormControl } from "@/components/ui/form-control";
 import { Progress } from "@/components/ui/progress";
+import { analytics } from "@/services/analytics";
 import { Box } from "@/components/ui/box";
 import { Heading } from "@/components/ui/heading";
 import { CheckIcon, ChevronRightIcon } from "@/components/ui/icon";
@@ -29,6 +30,10 @@ const interest = () => {
       await updateOnboardingProgress("interest", {
         interestedIn: values,
       });
+
+      // Track interested in selected
+      analytics.trackInterestedInSelected(values);
+
       router.push("/(auth)/onboarding/looking-for");
     }
   };

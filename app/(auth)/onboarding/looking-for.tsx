@@ -4,6 +4,7 @@ import { ScrollView } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
 import { FormControl } from "@/components/ui/form-control";
 import { Progress } from "@/components/ui/progress";
+import { analytics } from "@/services/analytics";
 import { Box } from "@/components/ui/box";
 import { Heading } from "@/components/ui/heading";
 import { ChevronRightIcon } from "@/components/ui/icon";
@@ -29,6 +30,10 @@ const lookingFor = () => {
       await updateOnboardingProgress("looking-for", {
         lookingFor: values,
       });
+
+      // Track looking for selected
+      analytics.trackLookingForSelected(values);
+
       router.push("/(auth)/onboarding/pictures");
     }
   };

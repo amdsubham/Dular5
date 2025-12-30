@@ -18,6 +18,7 @@ import { SwipeLimitModal } from "@/components/screens/home/swipe-limit-modal";
 import { fetchPotentialMatches, recordSwipeAction, MatchUser, MatchResult } from "@/services/matching";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ActivityIndicator } from "react-native";
+import { analytics } from "@/services/analytics";
 import Animated, {
   FadeIn,
   useAnimatedStyle,
@@ -52,6 +53,7 @@ const SwipeCard = ({
   const translateX = useSharedValue(0);
   const rotation = useSharedValue(0);
   const [imageErrors, setImageErrors] = useState<{ [key: number]: boolean }>({});
+  const [cardViewStartTime] = useState(Date.now());
 
   const triggerSwipe = (direction: "left" | "right") => {
     const isLeft = direction === "left";
@@ -382,6 +384,17 @@ const SwipeScreen = ({
         console.log('🚫 Swipe BLOCKED - limit reached, showing modal');
         console.log('   • This should only happen if swipesUsedToday >= swipesLimit');
         console.log('   • Current values: used=' + (subscription?.swipesUsedToday || 0) + ', limit=' + (subscription?.swipesLimit || 0));
+
+        // Track swipe limit reached
+        analytics.trackSwipeLimitReached(
+          subscription?.swipesUsedToday || 0,
+          subscription?.currentPlan || "free",
+          {
+            is_premium: isPremium,
+            swipes_limit: subscription?.swipesLimit || 0,
+          }
+        );
+
         setIsSwipeLimitModalOpen(true);
         return; // Don't perform the swipe
       }
@@ -392,6 +405,23 @@ const SwipeScreen = ({
       if (currentUser) {
         try {
           console.log(`🔄 Recording swipe ${action} for user:`, currentUser.uid);
+
+          // Track swipe action
+          if (action === "like") {
+            analytics.trackSwipeRight(currentUser.uid, currentIndex, {
+              current_plan: subscription?.currentPlan || "free",
+              is_premium: isPremium,
+              swipes_remaining: swipesRemaining,
+              has_active_filters: filters ? Object.keys(filters).length > 0 : false,
+            });
+          } else {
+            analytics.trackSwipeLeft(currentUser.uid, currentIndex, {
+              current_plan: subscription?.currentPlan || "free",
+              is_premium: isPremium,
+              swipes_remaining: swipesRemaining,
+              has_active_filters: filters ? Object.keys(filters).length > 0 : false,
+            });
+          }
 
           // Increment swipe count FIRST before recording the action
           await incrementSwipe();
@@ -409,6 +439,16 @@ const SwipeScreen = ({
               matchedUser: result.matchData.matchedUser,
               currentUser: result.matchData.currentUser,
             });
+
+            // Track match created
+            analytics.trackMatchCreated(
+              result.matchId,
+              currentUser.uid,
+              {
+                current_plan: subscription?.currentPlan || "free",
+                is_premium: isPremium,
+              }
+            );
 
             const newMatchData = {
               matchId: result.matchId,
@@ -443,7 +483,7 @@ const SwipeScreen = ({
         return nextIndex;
       });
     },
-    [currentIndex, matches, canSwipe, incrementSwipe, swipesRemaining]
+    [currentIndex, matches, canSwipe, incrementSwipe, swipesRemaining, subscription, isPremium, filters]
   );
 
   const handleSetSwipeFunctions = useCallback(

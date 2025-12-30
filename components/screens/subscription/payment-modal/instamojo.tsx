@@ -24,6 +24,7 @@ import {
 } from "@/types/subscription";
 import { auth, db } from "@/config/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { analytics } from "@/services/analytics";
 
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 
@@ -290,6 +291,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
       if (isActivated) {
         console.log("💡 Subscription activated successfully!");
+
+        // Track successful purchase completion
+        analytics.trackSubscriptionPurchaseCompleted(
+          plan.id,
+          plan.price,
+          currentTransactionId,
+          {
+            verification_time: "within_55_seconds",
+          }
+        );
+
         onSuccess();
       } else {
         console.log("⚠️ Subscription not activated yet after ~55 seconds");
@@ -305,6 +317,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 const retry = await checkSubscriptionActivation(25);
                 setVerifyingPayment(false);
                 if (retry) {
+                  // Track successful purchase completion (retry)
+                  analytics.trackSubscriptionPurchaseCompleted(
+                    plan.id,
+                    plan.price,
+                    currentTransactionId,
+                    {
+                      verification_time: "after_retry",
+                    }
+                  );
+
                   onSuccess();
                 } else {
                   onClose();
