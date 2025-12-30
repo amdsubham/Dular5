@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { ScrollView } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
 import { FormControl } from "@/components/ui/form-control";
 import { Progress } from "@/components/ui/progress";
+import { analytics } from "@/services/analytics";
+import { getOnboardingProgress } from "@/services/onboarding";
 import { Box } from "@/components/ui/box";
 import { Heading } from "@/components/ui/heading";
 import { ChevronRightIcon, CircleIcon } from "@/components/ui/icon";
@@ -29,6 +31,22 @@ const gender = () => {
       await updateOnboardingProgress("gender", {
         gender,
       });
+
+      // Track basic info entered (name, DOB, gender)
+      try {
+        const progress = await getOnboardingProgress();
+        if (progress && progress.firstName && progress.dob) {
+          analytics.trackBasicInfoEntered(
+            progress.firstName,
+            progress.lastName || "",
+            progress.dob,
+            gender
+          );
+        }
+      } catch (error) {
+        console.error("Error tracking basic info:", error);
+      }
+
       router.push("/(auth)/onboarding/interest");
     }
   };

@@ -53,6 +53,7 @@ const SwipeCard = ({
   const translateX = useSharedValue(0);
   const rotation = useSharedValue(0);
   const [imageErrors, setImageErrors] = useState<{ [key: number]: boolean }>({});
+  const [cardViewStartTime] = useState(Date.now());
 
   const triggerSwipe = (direction: "left" | "right") => {
     const isLeft = direction === "left";
@@ -385,11 +386,14 @@ const SwipeScreen = ({
         console.log('   • Current values: used=' + (subscription?.swipesUsedToday || 0) + ', limit=' + (subscription?.swipesLimit || 0));
 
         // Track swipe limit reached
-        analytics.track("swipe_limit_reached", {
-          current_plan: subscription?.currentPlan || "free",
-          swipes_used: subscription?.swipesUsedToday || 0,
-          swipes_limit: subscription?.swipesLimit || 0,
-        });
+        analytics.trackSwipeLimitReached(
+          subscription?.swipesUsedToday || 0,
+          subscription?.currentPlan || "free",
+          {
+            is_premium: isPremium,
+            swipes_limit: subscription?.swipesLimit || 0,
+          }
+        );
 
         setIsSwipeLimitModalOpen(true);
         return; // Don't perform the swipe
@@ -403,13 +407,21 @@ const SwipeScreen = ({
           console.log(`🔄 Recording swipe ${action} for user:`, currentUser.uid);
 
           // Track swipe action
-          analytics.trackMatchAction(action === "like" ? "like" : "pass", currentUser.uid);
-          analytics.track("swipe_action", {
-            action: action,
-            swipes_remaining: swipesRemaining - 1,
-            current_plan: subscription?.currentPlan || "free",
-            is_premium: subscription?.isPremium || false,
-          });
+          if (action === "like") {
+            analytics.trackSwipeRight(currentUser.uid, currentIndex, {
+              current_plan: subscription?.currentPlan || "free",
+              is_premium: isPremium,
+              swipes_remaining: swipesRemaining,
+              has_active_filters: filters ? Object.keys(filters).length > 0 : false,
+            });
+          } else {
+            analytics.trackSwipeLeft(currentUser.uid, currentIndex, {
+              current_plan: subscription?.currentPlan || "free",
+              is_premium: isPremium,
+              swipes_remaining: swipesRemaining,
+              has_active_filters: filters ? Object.keys(filters).length > 0 : false,
+            });
+          }
 
           // Increment swipe count FIRST before recording the action
           await incrementSwipe();
@@ -428,11 +440,15 @@ const SwipeScreen = ({
               currentUser: result.matchData.currentUser,
             });
 
-            // Track match
-            analytics.track("match_found", {
-              match_id: result.matchId,
-              matched_user_id: currentUser.uid,
-            });
+            // Track match created
+            analytics.trackMatchCreated(
+              result.matchId,
+              currentUser.uid,
+              {
+                current_plan: subscription?.currentPlan || "free",
+                is_premium: isPremium,
+              }
+            );
 
             const newMatchData = {
               matchId: result.matchId,
@@ -472,7 +488,7 @@ const SwipeScreen = ({
         return nextIndex;
       });
     },
-    [currentIndex, matches, canSwipe, incrementSwipe, swipesRemaining, subscription]
+    [currentIndex, matches, canSwipe, incrementSwipe, swipesRemaining, subscription, isPremium, filters]
   );
 
   const handleSetSwipeFunctions = useCallback(

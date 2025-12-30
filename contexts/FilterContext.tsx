@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { getUserPreferences } from '@/services/matching';
 import { updateUserProfile } from '@/services/profile';
 import { analytics } from '@/services/analytics';
+import { auth } from '@/config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export interface FilterState {
   minAge: number;
@@ -28,37 +30,82 @@ const defaultFilters: FilterState = {
 const FilterContext = createContext<FilterContextType | undefined>(undefined);
 
 export const FilterProvider = ({ children }: { children: ReactNode }) => {
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [filters, setFilters] = useState<FilterState | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Load user's onboarding preferences on mount
+  // Load user's onboarding preferences when auth state changes
   useEffect(() => {
-    const loadUserPreferences = async () => {
-      try {
-        const userPrefs = await getUserPreferences();
-        if (userPrefs && !initialized) {
-          setFilters((prev) => ({
-            ...prev,
-            // If user preferences exist, use them; otherwise use defaults
-            interestedIn: (userPrefs.interestedIn && userPrefs.interestedIn.length > 0)
-              ? userPrefs.interestedIn
-              : defaultFilters.interestedIn,
-            lookingFor: userPrefs.lookingFor || [],
-          }));
-          setInitialized(true);
-        }
-      } catch (error) {
-        console.error('Error loading user preferences for filters:', error);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user && user.uid !== currentUserId) {
+        // User logged in or changed - load their preferences
+        console.log('🔍 FilterContext: Auth state changed, user logged in:', user.uid);
+        setCurrentUserId(user.uid);
+        await loadUserPreferences();
+      } else if (!user && currentUserId) {
+        // User logged out - reset to defaults
+        console.log('🔍 FilterContext: User logged out, resetting to defaults');
+        setCurrentUserId(null);
+        setFilters(defaultFilters);
+        setInitialized(true);
+      } else if (!user) {
+        // No user on initial load - use defaults temporarily
+        console.log('🔍 FilterContext: No user on initial load, using defaults');
+        setFilters(defaultFilters);
         setInitialized(true);
       }
-    };
+    });
 
-    loadUserPreferences();
-  }, [initialized]);
+    return () => unsubscribe();
+  }, [currentUserId]);
+
+  const loadUserPreferences = async () => {
+    try {
+      console.log('🔍 FilterContext: Loading user preferences...');
+      const userPrefs = await getUserPreferences();
+      console.log('📋 FilterContext: User preferences loaded:', userPrefs);
+
+      if (userPrefs) {
+        // Debug logging
+        console.log('🔍 FilterContext Debug:');
+        console.log('  • userPrefs.interestedIn type:', typeof userPrefs.interestedIn);
+        console.log('  • userPrefs.interestedIn value:', userPrefs.interestedIn);
+        console.log('  • userPrefs.interestedIn is array?:', Array.isArray(userPrefs.interestedIn));
+        console.log('  • userPrefs.interestedIn length:', userPrefs.interestedIn?.length);
+        console.log('  • Condition result:', (userPrefs.interestedIn !== null && userPrefs.interestedIn !== undefined && userPrefs.interestedIn.length > 0));
+
+        const newFilters = {
+          ...defaultFilters,
+          // IMPORTANT: Use user's interestedIn from onboarding if it exists
+          // This ensures filter shows only what user selected during onboarding
+          interestedIn: (userPrefs.interestedIn && userPrefs.interestedIn.length > 0)
+            ? userPrefs.interestedIn
+            : defaultFilters.interestedIn,
+          lookingFor: (userPrefs.lookingFor && userPrefs.lookingFor.length > 0)
+            ? userPrefs.lookingFor
+            : [],
+        };
+
+        console.log('✅ FilterContext: Setting filters to:', newFilters);
+        console.log('  • Final interestedIn:', newFilters.interestedIn);
+        setFilters(newFilters);
+      } else {
+        console.log('⚠️  FilterContext: No user preferences found, using defaults');
+        setFilters(defaultFilters);
+      }
+      setInitialized(true);
+    } catch (error) {
+      console.error('❌ FilterContext: Error loading user preferences:', error);
+      setFilters(defaultFilters);
+      setInitialized(true);
+    }
+  };
 
   const updateFilters = async (newFilters: Partial<FilterState>) => {
+    if (!filters) return;
+
     // Update local state first
-    setFilters((prev) => ({ ...prev, ...newFilters }));
+    setFilters((prev) => ({ ...prev!, ...newFilters }));
 
     // Save interestedIn and lookingFor to database if they changed
     try {
@@ -93,6 +140,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   const resetFilters = () => {
     setFilters(defaultFilters);
   };
+
+  // Don't render children until filters are loaded to prevent showing default values
+  if (!filters || !initialized) {
+    return null;
+  }
 
   return (
     <FilterContext.Provider value={{ filters, updateFilters, resetFilters }}>

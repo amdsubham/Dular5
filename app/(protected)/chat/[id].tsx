@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { KeyboardAvoidingView, Platform, FlatList, ActivityIndicator, Alert } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Box } from "@/components/ui/box";
+import { analytics } from "@/services/analytics";
 import { Text } from "@/components/ui/text";
 import { Pressable } from "@/components/ui/pressable";
 import { ChevronLeftIcon, Icon, ThreeDotsIcon } from "@/components/ui/icon";
@@ -228,6 +230,16 @@ export default function ChatScreen() {
   const [userImage, setUserImage] = useState<string | null>(null);
   const [showActionsheet, setShowActionsheet] = useState(false);
 
+  // Track chat opened when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const isFirstMessage = messages.length === 0;
+      analytics.trackChatOpened(chatId, userId, isFirstMessage, {
+        user_name: userName,
+      });
+    }, [chatId, userId, userName, messages.length])
+  );
+
   useEffect(() => {
     // Initialize chat
     const initChat = async () => {
@@ -301,9 +313,15 @@ export default function ChatScreen() {
   const handleSend = async () => {
     if (!inputText.trim()) return;
 
-    const success = await sendMessage(chatId, inputText);
+    const messageText = inputText.trim();
+    const success = await sendMessage(chatId, messageText);
     if (success) {
       setInputText("");
+
+      // Track message sent
+      analytics.trackMessageSent(chatId, userId, messageText.length, "text", {
+        user_name: userName,
+      });
     }
   };
 
@@ -332,8 +350,15 @@ export default function ChatScreen() {
 
         // Send message with image
         if (imageUrl) {
-          await sendMessageWithImage(chatId, imageUrl, inputText || undefined);
+          const captionText = inputText || undefined;
+          await sendMessageWithImage(chatId, imageUrl, captionText);
           setInputText("");
+
+          // Track image message sent
+          analytics.trackMessageSent(chatId, userId, captionText?.length || 0, "image", {
+            user_name: userName,
+            has_caption: !!captionText,
+          });
         }
 
         setUploadingImage(false);
@@ -360,6 +385,12 @@ export default function ChatScreen() {
           onPress: async () => {
             const success = await blockUser(userId);
             if (success) {
+              // Track user blocked
+              analytics.trackUserBlocked(userId, {
+                user_name: userName,
+                from_screen: "chat",
+              });
+
               Alert.alert("User Blocked", `${userName} has been blocked successfully.`);
               router.back();
             } else {
@@ -386,6 +417,10 @@ export default function ChatScreen() {
           onPress: async () => {
             const success = await reportUser(userId, "Inappropriate Content");
             if (success) {
+              analytics.trackUserReported(userId, "Inappropriate Content", {
+                user_name: userName,
+                from_screen: "chat",
+              });
               Alert.alert("Report Submitted", "Thank you for your report. We'll review it shortly.");
             } else {
               Alert.alert("Error", "Failed to submit report. Please try again.");
@@ -397,6 +432,10 @@ export default function ChatScreen() {
           onPress: async () => {
             const success = await reportUser(userId, "Spam or Scam");
             if (success) {
+              analytics.trackUserReported(userId, "Spam or Scam", {
+                user_name: userName,
+                from_screen: "chat",
+              });
               Alert.alert("Report Submitted", "Thank you for your report. We'll review it shortly.");
             } else {
               Alert.alert("Error", "Failed to submit report. Please try again.");
@@ -408,6 +447,10 @@ export default function ChatScreen() {
           onPress: async () => {
             const success = await reportUser(userId, "Harassment");
             if (success) {
+              analytics.trackUserReported(userId, "Harassment", {
+                user_name: userName,
+                from_screen: "chat",
+              });
               Alert.alert("Report Submitted", "Thank you for your report. We'll review it shortly.");
             } else {
               Alert.alert("Error", "Failed to submit report. Please try again.");

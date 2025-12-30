@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollView, KeyboardAvoidingView, Platform, Keyboard } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
 import { Progress } from "@/components/ui/progress";
+import { analytics } from "@/services/analytics";
 import { Box } from "@/components/ui/box";
 import { Heading } from "@/components/ui/heading";
 import { ChevronRightIcon } from "@/components/ui/icon";

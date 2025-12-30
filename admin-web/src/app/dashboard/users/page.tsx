@@ -235,10 +235,22 @@ export default function UsersPage() {
     return interestedIn;
   };
 
+  const getLookingFor = (user: UserProfile) => {
+    const lookingFor = user.onboarding?.data?.lookingFor || user.lookingFor;
+    if (!lookingFor || lookingFor.length === 0) return [];
+    return lookingFor;
+  };
+
   const getPictures = (user: UserProfile) => {
     const pictures = user.onboarding?.data?.pictures || user.pictures;
     if (!pictures || pictures.length === 0) return [];
     return pictures;
+  };
+
+  const getDeletedPictures = (user: UserProfile) => {
+    const deletedPictures = user.onboarding?.data?.deletedPictures || user.deletedPictures;
+    if (!deletedPictures || deletedPictures.length === 0) return [];
+    return deletedPictures;
   };
 
   const getUserName = (user: UserProfile) => {
@@ -467,6 +479,7 @@ export default function UsersPage() {
           const pictures = getPictures(latestUser);
           const interests = getInterests(latestUser);
           const interestedIn = getInterestedIn(latestUser);
+          const lookingFor = getLookingFor(latestUser);
 
           return (
             <div key={latestUser.uid} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
@@ -564,6 +577,12 @@ export default function UsersPage() {
                       <span className="font-medium text-gray-900 capitalize">{interestedIn.join(', ')}</span>
                     </div>
                   )}
+                  {lookingFor.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Looking For:</span>
+                      <span className="font-medium text-gray-900 capitalize">{lookingFor.join(', ')}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Interests */}
@@ -587,6 +606,36 @@ export default function UsersPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Deleted Pictures */}
+                {(() => {
+                  const deletedPictures = getDeletedPictures(latestUser);
+                  return deletedPictures.length > 0 && (
+                    <div className="mb-4 border-t pt-4">
+                      <p className="text-xs text-gray-600 mb-2 font-medium">Deleted Pictures ({deletedPictures.length}):</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {deletedPictures.map((pic: string, idx: number) => (
+                          <div
+                            key={idx}
+                            className="relative h-20 bg-gray-100 rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-red-200"
+                            onClick={() => handleViewGallery(deletedPictures, idx)}
+                          >
+                            <img
+                              src={pic}
+                              alt={`Deleted ${idx + 1}`}
+                              className="w-full h-full object-cover rounded-lg opacity-75"
+                            />
+                            <div className="absolute inset-0 bg-red-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                              <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full font-medium">
+                                Deleted
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Profile Rating */}
                 <div className="mb-4 border-t pt-4">

@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { getUserStats } from '@/services/users';
-import { Users, UserCheck, AlertTriangle } from 'lucide-react';
+import { Users, UserCheck, AlertTriangle, Crown } from 'lucide-react';
 import Link from 'next/link';
 
 interface Stats {
   total: number;
   today: number;
   deleteRequests: number;
+  subscriptions: number;
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats>({ total: 0, today: 0, deleteRequests: 0 });
+  const [stats, setStats] = useState<Stats>({ total: 0, today: 0, deleteRequests: 0, subscriptions: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,6 +40,13 @@ export default function DashboardPage() {
       link: '/dashboard/users'
     },
     {
+      title: 'Subscriptions',
+      value: stats.subscriptions,
+      icon: Crown,
+      color: 'bg-primary-500',
+      link: '/dashboard/subscriptions'
+    },
+    {
       title: 'New Today',
       value: stats.today,
       icon: UserCheck,
@@ -62,7 +70,7 @@ export default function DashboardPage() {
     <div>
       <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 md:mb-8">Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
         {statCards.map((card) => {
           const Icon = card.icon;
           return (

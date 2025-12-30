@@ -281,8 +281,11 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
 
   // FIXED: Compute canSwipe directly from subscription data instead of swipesRemaining state
   // This prevents the bug where swipesRemaining state is 0 before it's updated
+  // Also handle -1 (unlimited) case for Monthly plan
   const canSwipe = subscriptionEnabled
-    ? (subscription ? (subscription.swipesUsedToday < subscription.swipesLimit) : false)
+    ? (subscription
+        ? (subscription.swipesLimit === -1 || subscription.swipesUsedToday < subscription.swipesLimit)
+        : false)
     : true; // Always true when disabled
 
   // ============================================================================

@@ -41,7 +41,6 @@ import {
 } from "@/services/profile";
 import {
   uploadMultipleImagesToFirebase,
-  deleteImageFromFirebase,
 } from "@/services/storage";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -81,6 +80,7 @@ export const EditScreen = () => {
   const [pictures, setPictures] = useState<(string | null)[]>(
     Array(MAX_IMAGES).fill(null)
   );
+  const [deletedPictures, setDeletedPictures] = useState<string[]>([]);
   const [dob, setDob] = useState<Date | null>(null);
   const [tempDob, setTempDob] = useState<Date | null>(null);
   const [showDobPicker, setShowDobPicker] = useState(false);
@@ -96,6 +96,7 @@ export const EditScreen = () => {
 
   // Auto-save timer
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAutoSavingRef = useRef(false);
 
   // Available options
   const availableInterests = [
@@ -136,33 +137,73 @@ export const EditScreen = () => {
   const autoSave = useCallback(async () => {
     if (loading || !profile) return; // Don't save during initial load
 
+    // Prevent concurrent autosaves
+    if (isAutoSavingRef.current) {
+      console.log('⏸️  AutoSave: Already in progress, skipping');
+      return;
+    }
+
     try {
+      isAutoSavingRef.current = true;
       setSaving(true);
 
-      // Upload new local images
-      const localImages = pictures.filter(
-        (img) => img && !img.startsWith("http")
-      ) as string[];
-      const existingImages = pictures.filter(
-        (img) => img && img.startsWith("http")
-      ) as string[];
+      console.log('🔧 AutoSave: Starting autosave');
+      console.log('📸 AutoSave: Current pictures array:', pictures);
 
+      // Build the final pictures array by preserving order and replacing local URIs with uploaded URLs
+      const picturesWithIndices = pictures.map((img, index) => ({ img, index }));
+      const localImageData = picturesWithIndices.filter(
+        (item) => item.img && !item.img.startsWith("http")
+      );
+      const existingImageData = picturesWithIndices.filter(
+        (item) => item.img && item.img.startsWith("http")
+      );
+
+      console.log('📍 AutoSave: Local images to upload:', localImageData.map(d => ({ index: d.index, uri: d.img })));
+      console.log('🌐 AutoSave: Existing Firebase URLs:', existingImageData.map(d => ({ index: d.index, url: d.img })));
+
+      // Upload local images
       let uploadedUrls: string[] = [];
-      if (localImages.length > 0) {
+      if (localImageData.length > 0) {
         setUploading(true);
+        const localUris = localImageData.map(d => d.img) as string[];
         uploadedUrls = await uploadMultipleImagesToFirebase(
-          localImages,
+          localUris,
           "user-profiles",
           (progress) => setUploadProgress(progress)
         );
         setUploading(false);
+        console.log('✅ AutoSave: Uploaded URLs:', uploadedUrls);
       }
 
-      const allPictureUrls = [...existingImages, ...uploadedUrls].filter(
-        Boolean
-      );
+      // Build final array by replacing local URIs with uploaded URLs while preserving order
+      const finalPictures = [...pictures];
+      console.log('🔄 AutoSave: Starting replacement - finalPictures before:', finalPictures);
 
-      // Update profile
+      // Track which indices we're replacing so we can update local state intelligently
+      const indicesToUpdate: { [key: number]: string } = {};
+
+      let uploadedIndex = 0;
+      for (let i = 0; i < finalPictures.length; i++) {
+        if (finalPictures[i] && !finalPictures[i]!.startsWith("http")) {
+          console.log(`   Replacing index ${i}: "${finalPictures[i]}" -> "${uploadedUrls[uploadedIndex]}"`);
+          // Replace local URI with uploaded URL
+          finalPictures[i] = uploadedUrls[uploadedIndex];
+          indicesToUpdate[i] = uploadedUrls[uploadedIndex];
+          uploadedIndex++;
+        } else if (finalPictures[i]) {
+          console.log(`   Keeping index ${i}: "${finalPictures[i]}" (already Firebase URL)`);
+        }
+      }
+
+      console.log('🔄 AutoSave: After replacement - finalPictures:', finalPictures);
+
+      // Filter out nulls to get clean array for Firestore
+      const allPictureUrls = finalPictures.filter(Boolean) as string[];
+      console.log('🎯 AutoSave: Final pictures array to save (after filtering nulls):', allPictureUrls);
+      console.log('📊 AutoSave: Picture count - Before filter: ' + finalPictures.length + ', After filter: ' + allPictureUrls.length);
+
+      // Update profile in Firestore
       await updateUserProfile({
         firstName,
         lastName,
@@ -170,18 +211,40 @@ export const EditScreen = () => {
         lookingFor,
         interests,
         pictures: allPictureUrls,
+        deletedPictures: deletedPictures, // Save deleted pictures for admin viewing
         dob: dob?.toISOString(),
       });
+
+      console.log('✅ AutoSave: Profile saved to Firestore successfully');
+
+      // IMPORTANT: Update local state to replace uploaded local URIs with Firebase URLs
+      // This prevents redundant uploads and keeps local state in sync with Firestore
+      // We use setState callback to work with the latest state, avoiding race conditions
+      if (Object.keys(indicesToUpdate).length > 0) {
+        setPictures(currentPictures => {
+          const updatedPictures = [...currentPictures];
+          for (const [indexStr, url] of Object.entries(indicesToUpdate)) {
+            const index = parseInt(indexStr);
+            // Only update if the slot still has the local URI (not a new photo added by user)
+            if (updatedPictures[index] && !updatedPictures[index]!.startsWith("http")) {
+              updatedPictures[index] = url;
+              console.log(`   Updated local state index ${index} with Firebase URL`);
+            }
+          }
+          return updatedPictures;
+        });
+      }
 
       setLastSaved(new Date());
     } catch (error: any) {
       console.error("Error auto-saving profile:", error);
     } finally {
+      isAutoSavingRef.current = false;
       setSaving(false);
       setUploading(false);
       setUploadProgress(0);
     }
-  }, [firstName, lastName, gender, lookingFor, interests, pictures, dob, loading, profile]);
+  }, [firstName, lastName, gender, lookingFor, interests, pictures, deletedPictures, dob, loading, profile]);
 
   // Trigger auto-save with debounce when form data changes
   useEffect(() => {
@@ -203,7 +266,7 @@ export const EditScreen = () => {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [firstName, lastName, gender, lookingFor, interests, pictures, dob, autoSave, loading, profile]);
+  }, [firstName, lastName, gender, lookingFor, interests, pictures, deletedPictures, dob, autoSave, loading, profile]);
 
   const loadProfile = async () => {
     try {
@@ -218,12 +281,27 @@ export const EditScreen = () => {
         setInterests(userProfile.interests || []);
 
         // Load pictures
+        console.log('📥 loadProfile: Loading pictures from profile');
+        console.log('📸 loadProfile: userProfile.pictures:', userProfile.pictures);
+
         if (userProfile.pictures && userProfile.pictures.length > 0) {
           const pics = [...userProfile.pictures];
+          console.log('🔄 loadProfile: Pictures after copy:', pics);
+
           while (pics.length < MAX_IMAGES) {
             pics.push(null);
           }
-          setPictures(pics.slice(0, MAX_IMAGES));
+
+          const finalPics = pics.slice(0, MAX_IMAGES);
+          console.log('✅ loadProfile: Final pictures to set in state:', finalPics);
+          setPictures(finalPics);
+        } else {
+          console.log('⚠️  loadProfile: No pictures found in profile');
+        }
+
+        // Load deleted pictures
+        if (userProfile.deletedPictures && userProfile.deletedPictures.length > 0) {
+          setDeletedPictures(userProfile.deletedPictures);
         }
 
         // Load DOB
@@ -267,9 +345,14 @@ export const EditScreen = () => {
           { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
         );
 
+        console.log(`📸 pickImage: Adding image at index ${index}:`, manipulatedImage.uri);
+        console.log('📸 pickImage: Current pictures before adding:', pictures);
+
         const newPictures = [...pictures];
         newPictures[index] = manipulatedImage.uri;
         setPictures(newPictures);
+
+        console.log('📸 pickImage: Pictures after adding:', newPictures);
       }
     } catch (error) {
       console.error("Error picking image:", error);
@@ -281,6 +364,28 @@ export const EditScreen = () => {
     const imageUrl = pictures[index];
     if (!imageUrl) return;
 
+    // Check if it's the first picture (main picture) and within 48 hours of account creation
+    if (index === 0 && profile?.createdAt) {
+      const accountCreatedAt = typeof profile.createdAt === 'string'
+        ? new Date(profile.createdAt)
+        : profile.createdAt instanceof Date
+        ? profile.createdAt
+        : new Date();
+
+      const now = new Date();
+      const hoursSinceCreation = (now.getTime() - accountCreatedAt.getTime()) / (1000 * 60 * 60);
+
+      if (hoursSinceCreation < 48) {
+        const hoursRemaining = Math.ceil(48 - hoursSinceCreation);
+        Alert.alert(
+          "Cannot Remove Main Picture",
+          `You cannot remove your main profile picture within 48 hours of creating your account. Please wait ${hoursRemaining} more hour${hoursRemaining !== 1 ? 's' : ''}.`,
+          [{ text: "OK" }]
+        );
+        return;
+      }
+    }
+
     Alert.alert("Remove Photo", "Are you sure you want to remove this photo?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -288,16 +393,24 @@ export const EditScreen = () => {
         style: "destructive",
         onPress: async () => {
           const newPictures = [...pictures];
-          // If it's a Firebase URL, delete from storage
+
+          // If it's a Firebase URL, add it to deleted pictures list (DON'T delete from storage)
           if (imageUrl.startsWith("http")) {
-            try {
-              await deleteImageFromFirebase(imageUrl);
-            } catch (error) {
-              console.error("Error deleting image:", error);
-            }
+            console.log('📤 Marking photo as deleted (not deleting from storage):', imageUrl);
+            setDeletedPictures(prev => {
+              // Only add if not already in deleted list
+              if (!prev.includes(imageUrl)) {
+                return [...prev, imageUrl];
+              }
+              return prev;
+            });
           }
+
+          // Remove from active pictures array
           newPictures[index] = null;
           setPictures(newPictures);
+
+          console.log('✅ Photo removed from active pictures, added to deleted list');
         },
       },
     ]);
@@ -374,9 +487,12 @@ export const EditScreen = () => {
               </Pressable>
             </>
           ) : (
-            <Box className="w-full h-full rounded-lg items-center justify-center border-2 border-dashed border-background-200 bg-background-50">
+            <Pressable
+              onPress={() => pickImage(index)}
+              className="w-full h-full rounded-lg items-center justify-center border-2 border-dashed border-background-200 bg-background-50"
+            >
               <Icon as={AddIcon} size="lg" className="text-background-400" />
-            </Box>
+            </Pressable>
           )}
         </Pressable>
       </ScaleDecorator>

@@ -11,7 +11,9 @@ export interface UserProfile {
   interestedIn?: string[];
   lookingFor?: string[];
   pictures?: string[];
+  deletedPictures?: string[]; // Track deleted photos for admin viewing
   interests?: string[];
+  createdAt?: string | Date;
 }
 
 /**
@@ -43,7 +45,11 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
           lookingFor: data.lookingFor || data.looking_for,
           pictures: data.pictures || data.photos,
           interests: data.interests || data.hobbies,
+          createdAt: data.createdAt,
         };
+      } else {
+        // If we got data from onboarding.data, still add createdAt from root
+        profileData.createdAt = data.createdAt;
       }
 
       console.log('Extracted profile data:', profileData);
@@ -73,16 +79,24 @@ export const updateUserProfile = async (profileData: Partial<UserProfile>): Prom
       const currentData = currentDoc.data();
       const currentProfile = currentData.onboarding?.data || {};
 
+      console.log('📥 updateUserProfile: Current profile from Firestore:', JSON.stringify(currentProfile, null, 2));
+      console.log('🔄 updateUserProfile: New data to merge:', JSON.stringify(profileData, null, 2));
+
       // Merge with existing data
       const updatedProfile = {
         ...currentProfile,
         ...profileData,
       };
 
+      console.log('💾 updateUserProfile: Final merged profile to save:', JSON.stringify(updatedProfile, null, 2));
+      console.log('📸 updateUserProfile: Pictures in final profile:', updatedProfile.pictures);
+
       await updateDoc(userRef, {
         'onboarding.data': updatedProfile,
         'onboarding.lastUpdated': new Date(),
       });
+
+      console.log('✅ updateUserProfile: Profile saved successfully');
     } else {
       throw new Error('User document not found');
     }

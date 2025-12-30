@@ -17,6 +17,7 @@ export interface UserProfile {
   interestedIn?: string[];
   lookingFor?: string[];
   pictures?: string[];
+  deletedPictures?: string[]; // Track deleted photos for admin viewing
   interests?: string[];
   location?: {
     latitude: number;

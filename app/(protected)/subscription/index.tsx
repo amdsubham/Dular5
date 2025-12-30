@@ -14,7 +14,7 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { VStack } from "@/components/ui/vstack";
 import { HStack } from "@/components/ui/hstack";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getSubscriptionPlans } from "@/services/subscription";
 import { PaymentModal } from "@/components/screens/subscription/payment-modal/instamojo";
@@ -22,6 +22,7 @@ import { SubscriptionPlan, formatPrice, getPlanDurationText } from "@/types/subs
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { auth, db } from "@/config/firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { analytics } from "@/services/analytics";
 
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 
@@ -40,6 +41,17 @@ export default function SubscriptionPage() {
     daysRemaining,
     refreshSubscription,
   } = useSubscription();
+
+  // Track screen view (only once, no need for separate subscription viewed event)
+  useFocusEffect(
+    React.useCallback(() => {
+      analytics.trackScreen("Subscription_Page", {
+        isPremium,
+        currentPlan: subscription?.currentPlan || "free",
+        swipesRemaining,
+      });
+    }, [isPremium, subscription?.currentPlan, swipesRemaining])
+  );
 
   // Update lastActive timestamp when page loads
   useEffect(() => {
@@ -94,6 +106,20 @@ export default function SubscriptionPage() {
   }, []);
 
   const handleSelectPlan = (plan: SubscriptionPlan) => {
+    console.log("🔘 Plan selected:", plan.id, plan.displayName);
+    console.log("📋 Current subscription:", subscription?.currentPlan);
+
+    // Track plan selection
+    analytics.trackSubscriptionPlanSelected(
+      plan.id,
+      plan.displayName,
+      plan.price,
+      {
+        current_plan: subscription?.currentPlan || "free",
+        swipes_remaining: swipesRemaining,
+      }
+    );
+
     // Check if user is already on this plan
     if (subscription?.currentPlan === plan.id) {
       Alert.alert(
@@ -104,20 +130,42 @@ export default function SubscriptionPage() {
       return;
     }
 
+    // Track purchase initiation
+    analytics.trackSubscriptionPurchaseInitiated(
+      plan.id,
+      plan.price,
+      {
+        current_plan: subscription?.currentPlan || "free",
+        swipes_remaining: swipesRemaining,
+      }
+    );
+
     // Open payment modal
+    console.log("🔓 Opening payment modal...");
     setSelectedPlan(plan);
     setShowPaymentModal(true);
+    console.log("✅ Modal state updated - showPaymentModal: true, selectedPlan:", plan.id);
   };
 
   const handlePaymentSuccess = async () => {
     console.log("✅ handlePaymentSuccess called");
-    setShowPaymentModal(false);
-    setSelectedPlan(null);
 
-    // Refresh subscription data to ensure UI updates
+    // IMPORTANT: Refresh subscription data FIRST before closing modal
+    // This ensures the UI has the latest data (swipesUsedToday reset to 0)
     console.log("🔄 Refreshing subscription data after successful payment...");
     await refreshSubscription();
     console.log("✅ Subscription data refreshed");
+
+    // Log the updated subscription state for debugging
+    console.log("📊 Updated subscription state:");
+    console.log("   • Current Plan:", subscription?.currentPlan);
+    console.log("   • Swipes Used:", subscription?.swipesUsedToday);
+    console.log("   • Swipes Limit:", subscription?.swipesLimit);
+    console.log("   • Can Swipe:", swipesUsedToday < swipesLimit);
+
+    // Now close the modal
+    setShowPaymentModal(false);
+    setSelectedPlan(null);
 
     // Show success message
     Alert.alert(
@@ -127,7 +175,7 @@ export default function SubscriptionPage() {
         {
           text: "Great!",
           onPress: () => {
-            // Optionally navigate back or refresh
+            // Navigate back to previous screen
             router.back();
           },
         },

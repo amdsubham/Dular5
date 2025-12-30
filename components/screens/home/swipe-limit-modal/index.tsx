@@ -38,6 +38,11 @@ export const SwipeLimitModal: React.FC<SwipeLimitModalProps> = ({
   onClose,
   onUpgrade,
 }) => {
+  // Handle unlimited swipes case (-1 or very large number)
+  const isUnlimited = swipesLimit === -1 || swipesLimit >= 999999;
+  const displayLimit = isUnlimited ? "∞" : swipesLimit;
+  const percentage = isUnlimited ? 0 : Math.round((swipesUsed / swipesLimit) * 100);
+
   const handleUpgradePress = () => {
     onClose();
     // Navigate to subscription plans page
@@ -72,8 +77,8 @@ export const SwipeLimitModal: React.FC<SwipeLimitModalProps> = ({
               </Heading>
               <Text className="text-white/90 text-center text-base leading-6">
                 {isPremium
-                  ? `You've used all ${swipesLimit} swipes for today on your ${planName} plan. Come back tomorrow!`
-                  : `You've used all ${swipesLimit} free swipes for today. Upgrade to get more swipes!`}
+                  ? `You've used all ${displayLimit} swipes for today on your ${planName} plan. Come back tomorrow!`
+                  : `You've used all ${displayLimit} free swipes for today. Upgrade to get more swipes!`}
               </Text>
             </VStack>
           </LinearGradient>
@@ -88,12 +93,12 @@ export const SwipeLimitModal: React.FC<SwipeLimitModalProps> = ({
                     Swipes Used Today
                   </Text>
                   <Heading size="xl" className="text-typography-950 font-satoshi mt-1">
-                    {swipesUsed} / {swipesLimit}
+                    {swipesUsed} / {displayLimit}
                   </Heading>
                 </VStack>
                 <Box className="w-16 h-16 rounded-full bg-primary-100 items-center justify-center">
                   <Text className="text-primary-600 text-2xl font-bold">
-                    {Math.round((swipesUsed / swipesLimit) * 100)}%
+                    {percentage}%
                   </Text>
                 </Box>
               </HStack>
@@ -103,7 +108,7 @@ export const SwipeLimitModal: React.FC<SwipeLimitModalProps> = ({
                 <Box
                   className="h-full bg-primary-500 rounded-full"
                   style={{
-                    width: `${(swipesUsed / swipesLimit) * 100}%`,
+                    width: `${percentage}%`,
                   }}
                 />
               </Box>

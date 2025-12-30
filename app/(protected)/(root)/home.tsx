@@ -14,6 +14,8 @@ import { useFilters } from "@/contexts/FilterContext";
 import { fixCurrentUserOnboarding } from "@/services/fix-onboarding";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Crown } from "lucide-react-native";
+import { useFocusEffect } from "expo-router";
+import { analytics } from "@/services/analytics";
 
 const AnimatedBox = Animated.createAnimatedComponent(Box);
 function Header() {
@@ -155,6 +157,21 @@ function ExploreLayout() {
 }
 
 export default function Index() {
+  const { filters } = useFilters();
+  const { isPremium, subscription, swipesRemaining } = useSubscription();
+
+  // Track screen view
+  useFocusEffect(
+    React.useCallback(() => {
+      analytics.trackScreen("Home_Swipe", {
+        isPremium,
+        currentPlan: subscription?.currentPlan || "free",
+        swipesRemaining,
+        hasActiveFilters: Object.keys(filters).length > 0,
+      });
+    }, [isPremium, subscription?.currentPlan, swipesRemaining, filters])
+  );
+
   // Auto-fix onboarding.completed flag if needed
   useEffect(() => {
     fixCurrentUserOnboarding().catch(console.error);

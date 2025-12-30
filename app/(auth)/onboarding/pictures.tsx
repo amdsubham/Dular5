@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollView } from "react-native";
 import { ProgressFilledTrack } from "@/components/ui/progress";
+import { analytics } from "@/services/analytics";
 import { Progress } from "@/components/ui/progress";
 import { Box } from "@/components/ui/box";
 import { Heading } from "@/components/ui/heading";
@@ -146,6 +147,9 @@ const pictures = () => {
       await updateOnboardingProgress("pictures", {
         pictures: downloadURLs, // Store Firebase Storage URLs, not local URIs
       });
+
+      // Track photos uploaded
+      analytics.trackPhotosUploaded(downloadURLs.length);
 
       console.log("Picture URLs saved to Firestore");
 

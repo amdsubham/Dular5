@@ -30,8 +30,13 @@ export const accordionItems = [
       const [value, setValue] = useState<string[]>(filters.interestedIn);
 
       useEffect(() => {
+        console.log('🎯 Filter Accordion - interestedIn changed:', filters.interestedIn);
+        console.log('🎯 Filter Accordion - Setting local value to:', filters.interestedIn);
         setValue(filters.interestedIn);
       }, [filters.interestedIn]);
+
+      console.log('🎯 Filter Accordion - Current local value:', value);
+      console.log('🎯 Filter Accordion - Current filters.interestedIn:', filters.interestedIn);
 
       const handleChange = (newValue: string[]) => {
         // Ensure at least one gender is selected
