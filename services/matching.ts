@@ -81,13 +81,23 @@ export const getUserPreferences = async (): Promise<{
  * Calculate love/compatibility percentage based on shared interests
  */
 const calculateLovePercentage = (userInterests: string[], matchInterests: string[]): number => {
-  if (!userInterests.length || !matchInterests.length) return 0;
+  // If no interests for either user, return a random percentage between 70-100%
+  if (!userInterests.length || !matchInterests.length) {
+    return Math.floor(Math.random() * 31) + 70; // Random between 70-100
+  }
 
   const sharedInterests = userInterests.filter(interest =>
     matchInterests.includes(interest)
   );
 
+  // Calculate percentage based on shared interests
   const percentage = (sharedInterests.length / Math.max(userInterests.length, matchInterests.length)) * 100;
+
+  // If calculated percentage is 0 (no shared interests), return random 70-100%
+  if (percentage === 0) {
+    return Math.floor(Math.random() * 31) + 70; // Random between 70-100
+  }
+
   return Math.round(percentage);
 };
 
