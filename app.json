@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dular",
     "slug": "dular",
-    "version": "18.0.0",
+    "version": "19.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo_big.png",
     "splash": {

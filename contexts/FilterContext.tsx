@@ -2,8 +2,9 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { getUserPreferences } from '@/services/matching';
 import { updateUserProfile } from '@/services/profile';
 import { analytics } from '@/services/analytics';
-import { auth } from '@/config/firebase';
+import { auth, db } from '@/config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 export interface FilterState {
   minAge: number;
@@ -57,6 +58,31 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
+  }, [currentUserId]);
+
+  // Set up realtime listener for user document changes
+  // This ensures filters are updated when onboarding data changes
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    console.log('🔄 FilterContext: Setting up realtime listener for user:', currentUserId);
+    const unsubscribe = onSnapshot(
+      doc(db, 'users', currentUserId),
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          console.log('🔔 FilterContext: User document updated, reloading preferences');
+          loadUserPreferences();
+        }
+      },
+      (error) => {
+        console.error('❌ FilterContext: Error in realtime listener:', error);
+      }
+    );
+
+    return () => {
+      console.log('🛑 FilterContext: Cleaning up realtime listener');
+      unsubscribe();
+    };
   }, [currentUserId]);
 
   const loadUserPreferences = async () => {
