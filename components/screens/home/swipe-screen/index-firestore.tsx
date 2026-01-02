@@ -336,7 +336,12 @@ const SwipeScreen = ({
   useEffect(() => {
     const loadMatches = async () => {
       try {
+        // Clear existing matches immediately when filter changes
+        console.log('🔄 Filter changed - clearing existing matches and fetching new ones');
+        setMatches([]);
+        setCurrentIndex(0);
         setLoading(true);
+
         const potentialMatches = await fetchPotentialMatches({
           maxDistance: filters?.maxDistance || 100,
           minAge: filters?.minAge || 18,
@@ -344,6 +349,10 @@ const SwipeScreen = ({
           interestedIn: filters?.interestedIn || [],
           lookingFor: filters?.lookingFor || [],
         });
+
+        console.log('📱 SWIPE SCREEN - Received matches from fetchPotentialMatches:');
+        console.log('   Order:', potentialMatches.map(m => `${m.firstName}(${m.rating || 0})`).join(' -> '));
+
         setMatches(potentialMatches);
         setCurrentIndex(0);
         setIsEndReached(false);
@@ -352,6 +361,7 @@ const SwipeScreen = ({
         }
       } catch (error) {
         console.error("Error loading matches:", error);
+        setMatches([]); // Clear matches on error too
         setIsEndReached(true);
       } finally {
         setLoading(false);

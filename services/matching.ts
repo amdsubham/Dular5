@@ -152,33 +152,55 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
     let q;
     let querySnapshot;
 
-    // Filter by gender preference if available
+    // OPTIMIZED APPROACH: Query each gender separately with orderBy rating
+    // This allows Firestore to natively sort by rating (much faster)
+    const allSnapshots: any[] = [];
+
     if (genderPreference && genderPreference.length > 0) {
-      console.log('Querying with gender filter:', genderPreference);
+      console.log('Querying with gender filter (separate queries):', genderPreference);
 
       try {
-        q = query(
-          usersRef,
-          where('onboarding.data.gender', 'in', genderPreference),
-          limit(50)
-        );
-        querySnapshot = await getDocs(q);
-        console.log('Total users fetched with gender filter:', querySnapshot.size);
+        // Run separate query for each gender preference
+        // This allows us to use orderBy('rating', 'desc') which isn't possible with 'in' operator
+        for (const gender of genderPreference) {
+          console.log(`Fetching users with gender: ${gender}`);
+
+          const genderQuery = query(
+            usersRef,
+            where('onboarding.data.gender', '==', gender), // Single equality allows orderBy
+            orderBy('rating', 'desc'), // Sort by rating at database level (fastest!)
+            limit(100) // Fetch top 100 per gender
+          );
+
+          const snapshot = await getDocs(genderQuery);
+          console.log(`  → Found ${snapshot.size} users with gender ${gender}`);
+          allSnapshots.push(snapshot);
+        }
+
+        // Combine all results into a single array
+        const allDocs: any[] = [];
+        allSnapshots.forEach(snapshot => {
+          snapshot.forEach((doc: any) => allDocs.push(doc));
+        });
+
+        // Create a mock QuerySnapshot-like object
+        querySnapshot = {
+          size: allDocs.length,
+          forEach: (callback: any) => allDocs.forEach(callback),
+          docs: allDocs
+        } as any;
+
+        console.log('Total users fetched across all genders:', querySnapshot.size);
 
         // If no results, try without gender filter for debugging
         if (querySnapshot.size === 0) {
           console.warn('⚠️ No users found with gender filter. Trying without filter to check if users exist...');
-          const testQuery = query(
-            usersRef,
-            limit(10)
-          );
+          const testQuery = query(usersRef, limit(10));
           const testSnapshot = await getDocs(testQuery);
           console.log('Total users without gender filter:', testSnapshot.size);
 
           if (testSnapshot.size > 0) {
             console.warn('⚠️ Users exist but gender filter returns nothing!');
-            console.warn('This means gender values in database don\'t match the filter.');
-            console.warn('Checking first user gender value...');
             const firstUser = testSnapshot.docs[0];
             const firstUserData = firstUser.data();
             console.warn('First user gender value:', firstUserData.onboarding?.data?.gender);
@@ -187,19 +209,17 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
         }
       } catch (error) {
         console.error('Error with gender query:', error);
-        // Fallback to query without gender filter
-        q = query(
-          usersRef,
-          limit(50)
-        );
+        // Fallback to query without sorting
+        q = query(usersRef, limit(100));
         querySnapshot = await getDocs(q);
       }
     } else {
-      console.log('Querying WITHOUT gender filter - showing all users');
-      // If no gender preference, show all users
+      console.log('Querying WITHOUT gender filter - fetching top 100 by rating');
+      // If no gender preference, fetch top users by rating
       q = query(
         usersRef,
-        limit(50)
+        orderBy('rating', 'desc'),
+        limit(100)
       );
       querySnapshot = await getDocs(q);
       console.log('Total users fetched:', querySnapshot.size);
@@ -300,6 +320,9 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
 
     console.log(`Total matches after filtering: ${matches.length}`);
 
+    console.log('=== BEFORE SORTING ===');
+    console.log('Matches before sort:', matches.map(m => `${m.firstName} (rating: ${m.rating || 0})`).join(', '));
+
     // Sort all matches by rating, love percentage, and distance
     matches.sort((a, b) => {
       // Logic: If user is interested in 'Man', show only men sorted by rating
@@ -309,7 +332,10 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
       // For all cases - sort by rating first
       // Primary sort: by rating (highest first)
       const ratingDiff = (b.rating || 0) - (a.rating || 0);
-      if (ratingDiff !== 0) return ratingDiff;
+      if (ratingDiff !== 0) {
+        console.log(`Sorting: ${b.firstName}(${b.rating || 0}) vs ${a.firstName}(${a.rating || 0}) = ${ratingDiff}`);
+        return ratingDiff;
+      }
 
       // Secondary sort: by love percentage
       const lovePercentageDiff = b.lovePercentage - a.lovePercentage;
@@ -319,10 +345,19 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
       return a.distance - b.distance;
     });
 
-    console.log('=== MATCHES SORTED ===');
-    console.log('Returning matches:', matches.map(m => `${m.firstName} (rating: ${m.rating})`).join(', '));
+    console.log('=== AFTER SORTING ===');
+    console.log('Matches after sort:', matches.map(m => `${m.firstName} (rating: ${m.rating || 0})`).join(', '));
 
-    return matches;
+    // Return top 50 highest-rated matches
+    // We fetched ALL women, applied filters, sorted by rating, now return top 50
+    const topMatches = matches.slice(0, 50);
+    console.log(`\n📊 Final Results:`);
+    console.log(`   • Total users fetched: ${querySnapshot.size}`);
+    console.log(`   • After filters (age, distance, swiped, blocked): ${matches.length}`);
+    console.log(`   • Returning top matches: ${topMatches.length}`);
+    console.log(`   • Top 10 ratings: ${topMatches.slice(0, 10).map(m => m.rating || 0).join(', ')}`);
+
+    return topMatches;
   } catch (error) {
     console.error('Error fetching potential matches:', error);
     throw error;

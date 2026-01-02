@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getAllUsers, deleteUser, filterUsers, createUser, updateUser, getUserSwipeStats } from '@/services/users';
 import { UserProfile, UserFilters } from '@/types/user';
-import { Search, Plus, Edit, Trash2, X, Save, ZoomIn, User as UserIcon, ChevronLeft, ChevronRight, RefreshCw, Star, Heart, ThumbsUp, ThumbsDown, Activity, MessageCircle } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Save, ZoomIn, User as UserIcon, ChevronLeft, ChevronRight, RefreshCw, Star, Heart, ThumbsUp, ThumbsDown, Activity, MessageCircle, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function UsersPage() {
@@ -26,6 +26,8 @@ export default function UsersPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadingSwipeStats, setLoadingSwipeStats] = useState<{[key: string]: boolean}>({});
   const [showSwipeStats, setShowSwipeStats] = useState<{[key: string]: boolean}>({});
+  const [userLocations, setUserLocations] = useState<{[key: string]: string}>({});
+  const [loadingLocations, setLoadingLocations] = useState<{[key: string]: boolean}>({});
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,6 +51,27 @@ export default function UsersPage() {
     applyFilters();
     setCurrentPage(1); // Reset to first page when filters change
   }, [searchTerm, filters, users]);
+
+  // Fetch locations for visible users
+  useEffect(() => {
+    const fetchLocationsForVisibleUsers = async () => {
+      const indexOfLastUser = currentPage * usersPerPage;
+      const indexOfFirstUser = indexOfLastUser - usersPerPage;
+      const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+
+      for (const user of currentUsers) {
+        if (user.location?.latitude && user.location?.longitude && !userLocations[user.uid] && !loadingLocations[user.uid]) {
+          // Add a small delay to respect Nominatim's rate limit (1 request per second)
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          fetchUserLocation(user.uid, user.location.latitude, user.location.longitude);
+        }
+      }
+    };
+
+    if (filteredUsers.length > 0) {
+      fetchLocationsForVisibleUsers();
+    }
+  }, [currentPage, filteredUsers, usersPerPage]);
 
   const loadUsers = async () => {
     try {
@@ -126,6 +149,69 @@ export default function UsersPage() {
     const whatsappUrl = `https://wa.me/${formattedPhone}?text=${message}`;
 
     window.open(whatsappUrl, '_blank');
+  };
+
+  const handleOpenMap = (user: UserProfile) => {
+    const latitude = user.location?.latitude;
+    const longitude = user.location?.longitude;
+
+    // Check if location data exists
+    if (!latitude || !longitude) {
+      alert('No location data available for this user');
+      return;
+    }
+
+    // Open Google Maps with the coordinates
+    const googleMapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+    window.open(googleMapsUrl, '_blank');
+  };
+
+  const fetchUserLocation = async (userId: string, latitude: number, longitude: number) => {
+    // Check if location is already cached
+    if (userLocations[userId]) {
+      return;
+    }
+
+    setLoadingLocations(prev => ({ ...prev, [userId]: true }));
+
+    try {
+      // Use Nominatim (OpenStreetMap) reverse geocoding API - completely free, no API key required
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'Dular Admin Panel'
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const address = data.address;
+
+        // Format location string: City, State, Country
+        const locationParts = [];
+        if (address.city || address.town || address.village) {
+          locationParts.push(address.city || address.town || address.village);
+        }
+        if (address.state) {
+          locationParts.push(address.state);
+        }
+        if (address.country) {
+          locationParts.push(address.country);
+        }
+
+        const locationString = locationParts.join(', ') || 'Location unavailable';
+        setUserLocations(prev => ({ ...prev, [userId]: locationString }));
+      } else {
+        setUserLocations(prev => ({ ...prev, [userId]: 'Location unavailable' }));
+      }
+    } catch (error) {
+      console.error('Error fetching location:', error);
+      setUserLocations(prev => ({ ...prev, [userId]: 'Location unavailable' }));
+    } finally {
+      setLoadingLocations(prev => ({ ...prev, [userId]: false }));
+    }
   };
 
   const handleRating = async (userId: string, rating: number) => {
@@ -541,6 +627,13 @@ export default function UsersPage() {
                       <MessageCircle className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
                     <button
+                      onClick={() => handleOpenMap(latestUser)}
+                      className="text-orange-600 hover:text-orange-900 p-1.5 md:p-2 hover:bg-orange-50 rounded-lg transition-colors"
+                      title="View location on map"
+                    >
+                      <MapPin className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                    <button
                       onClick={() => handleEdit(user)}
                       className="text-blue-600 hover:text-blue-900 p-1.5 md:p-2 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Edit user"
@@ -571,6 +664,18 @@ export default function UsersPage() {
                     <span className="text-gray-600">Registered:</span>
                     <span className="font-medium text-gray-900">{formatDate(user.createdAt)}</span>
                   </div>
+                  {latestUser.location?.latitude && latestUser.location?.longitude && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Location:</span>
+                      <span className="font-medium text-gray-900 text-right">
+                        {loadingLocations[latestUser.uid] ? (
+                          <span className="text-gray-400 italic">Loading...</span>
+                        ) : (
+                          userLocations[latestUser.uid] || 'Loading...'
+                        )}
+                      </span>
+                    </div>
+                  )}
                   {interestedIn.length > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Interested In:</span>

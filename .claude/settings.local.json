@@ -79,7 +79,8 @@
       "Bash($ANDROID_HOME/build-tools/36.0.0/aapt:*)",
       "Bash(npx firebase-tools functions:list)",
       "Bash(git checkout:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(firebase firestore:indexes:*)"
     ],
     "deny": [],
     "ask": []
