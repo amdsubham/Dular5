@@ -311,6 +311,7 @@ const SwipeScreen = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isEndReached, setIsEndReached] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [swipeLeft, setSwipeLeft] = useState<(() => void) | undefined>();
   const [swipeRight, setSwipeRight] = useState<(() => void) | undefined>();
   const [isOpen, setIsOpen] = useState(false);
@@ -331,6 +332,58 @@ const SwipeScreen = ({
   useEffect(() => {
     console.log('🔄 State changed - isOpen:', isOpen, 'matchData:', matchData ? 'exists' : 'null');
   }, [isOpen, matchData]);
+
+  // Function to fetch more matches and append to existing list
+  const fetchMoreMatches = useCallback(async () => {
+    if (isFetchingMore) {
+      console.log('⏳ Already fetching more matches, skipping...');
+      return;
+    }
+
+    try {
+      setIsFetchingMore(true);
+      console.log('🔄 Fetching more matches to append...');
+
+      const potentialMatches = await fetchPotentialMatches({
+        maxDistance: filters?.maxDistance || 100,
+        minAge: filters?.minAge || 18,
+        maxAge: filters?.maxAge || 99,
+        interestedIn: filters?.interestedIn || [],
+        lookingFor: filters?.lookingFor || [],
+      });
+
+      console.log(`📥 Fetched ${potentialMatches.length} more matches`);
+
+      if (potentialMatches.length > 0) {
+        // Append new matches to existing ones (avoid duplicates)
+        setMatches(prev => {
+          const existingIds = new Set(prev.map(m => m.uid));
+          const newMatches = potentialMatches.filter(m => !existingIds.has(m.uid));
+          console.log(`✅ Adding ${newMatches.length} new unique matches (${potentialMatches.length - newMatches.length} duplicates filtered)`);
+          return [...prev, ...newMatches];
+        });
+        setIsEndReached(false);
+      } else {
+        console.log('❌ No more matches found');
+        setIsEndReached(true);
+      }
+    } catch (error) {
+      console.error('Error fetching more matches:', error);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  }, [filters, isFetchingMore]);
+
+  // Auto-fetch more matches when running low
+  useEffect(() => {
+    const remainingCards = matches.length - currentIndex;
+
+    // If less than 10 cards remaining and not already fetching
+    if (remainingCards <= 10 && remainingCards > 0 && !isFetchingMore && !isEndReached) {
+      console.log(`⚠️ Only ${remainingCards} cards left, fetching more...`);
+      fetchMoreMatches();
+    }
+  }, [currentIndex, matches.length, isFetchingMore, isEndReached, fetchMoreMatches]);
 
   // Fetch potential matches on component mount and when filters change
   useEffect(() => {

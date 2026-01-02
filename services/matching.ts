@@ -169,7 +169,7 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
             usersRef,
             where('onboarding.data.gender', '==', gender), // Single equality allows orderBy
             orderBy('rating', 'desc'), // Sort by rating at database level (fastest!)
-            limit(100) // Fetch top 100 per gender
+            limit(200) // Fetch top 200 per gender for better continuity
           );
 
           const snapshot = await getDocs(genderQuery);
@@ -210,16 +210,16 @@ export const fetchPotentialMatches = async (filters?: MatchFilters): Promise<Mat
       } catch (error) {
         console.error('Error with gender query:', error);
         // Fallback to query without sorting
-        q = query(usersRef, limit(100));
+        q = query(usersRef, limit(200));
         querySnapshot = await getDocs(q);
       }
     } else {
-      console.log('Querying WITHOUT gender filter - fetching top 100 by rating');
+      console.log('Querying WITHOUT gender filter - fetching top 200 by rating');
       // If no gender preference, fetch top users by rating
       q = query(
         usersRef,
         orderBy('rating', 'desc'),
-        limit(100)
+        limit(200)
       );
       querySnapshot = await getDocs(q);
       console.log('Total users fetched:', querySnapshot.size);
