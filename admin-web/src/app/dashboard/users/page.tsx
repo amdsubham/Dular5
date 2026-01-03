@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getAllUsers, deleteUser, filterUsers, createUser, updateUser, getUserSwipeStats } from '@/services/users';
 import { UserProfile, UserFilters } from '@/types/user';
-import { Search, Plus, Edit, Trash2, X, Save, ZoomIn, User as UserIcon, ChevronLeft, ChevronRight, RefreshCw, Star, Heart, ThumbsUp, ThumbsDown, Activity, MessageCircle, MapPin } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Save, ZoomIn, User as UserIcon, ChevronLeft, ChevronRight, RefreshCw, Star, Heart, ThumbsUp, ThumbsDown, Activity, MessageCircle, MapPin, Copy, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function UsersPage() {
@@ -28,6 +28,10 @@ export default function UsersPage() {
   const [showSwipeStats, setShowSwipeStats] = useState<{[key: string]: boolean}>({});
   const [userLocations, setUserLocations] = useState<{[key: string]: string}>({});
   const [loadingLocations, setLoadingLocations] = useState<{[key: string]: boolean}>({});
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [selectedUserForPlan, setSelectedUserForPlan] = useState<UserProfile | null>(null);
+  const [userSubscriptions, setUserSubscriptions] = useState<{[key: string]: any}>({});
+  const [loadingSubscriptions, setLoadingSubscriptions] = useState<{[key: string]: boolean}>({});
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,6 +74,25 @@ export default function UsersPage() {
 
     if (filteredUsers.length > 0) {
       fetchLocationsForVisibleUsers();
+    }
+  }, [currentPage, filteredUsers, usersPerPage]);
+
+  // Fetch subscriptions for visible users
+  useEffect(() => {
+    const fetchSubscriptionsForVisibleUsers = async () => {
+      const indexOfLastUser = currentPage * usersPerPage;
+      const indexOfFirstUser = indexOfLastUser - usersPerPage;
+      const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+
+      for (const user of currentUsers) {
+        if (!userSubscriptions[user.uid] && !loadingSubscriptions[user.uid]) {
+          fetchUserSubscription(user.uid);
+        }
+      }
+    };
+
+    if (filteredUsers.length > 0) {
+      fetchSubscriptionsForVisibleUsers();
     }
   }, [currentPage, filteredUsers, usersPerPage]);
 
@@ -212,6 +235,46 @@ export default function UsersPage() {
     } finally {
       setLoadingLocations(prev => ({ ...prev, [userId]: false }));
     }
+  };
+
+  const fetchUserSubscription = async (userId: string) => {
+    // Check if subscription is already cached
+    if (userSubscriptions[userId]) {
+      return;
+    }
+
+    setLoadingSubscriptions(prev => ({ ...prev, [userId]: true }));
+
+    try {
+      const { getUserSubscription } = await import('@/services/subscriptions');
+      const subscription = await getUserSubscription(userId);
+
+      if (subscription) {
+        setUserSubscriptions(prev => ({ ...prev, [userId]: subscription }));
+      } else {
+        // User has no subscription (default to free)
+        setUserSubscriptions(prev => ({ ...prev, [userId]: { currentPlan: 'free', isActive: false } }));
+      }
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+      setUserSubscriptions(prev => ({ ...prev, [userId]: { currentPlan: 'free', isActive: false } }));
+    } finally {
+      setLoadingSubscriptions(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const handleCopyUserId = (userId: string) => {
+    navigator.clipboard.writeText(userId).then(() => {
+      alert('User ID copied to clipboard!');
+    }).catch((err) => {
+      console.error('Failed to copy:', err);
+      alert('Failed to copy User ID');
+    });
+  };
+
+  const handleOpenPlanModal = (user: UserProfile) => {
+    setSelectedUserForPlan(user);
+    setShowPlanModal(true);
   };
 
   const handleRating = async (userId: string, rating: number) => {
@@ -617,8 +680,18 @@ export default function UsersPage() {
                     <p className="text-xs md:text-sm text-gray-600 truncate">
                       {user.phoneNumber || user.email || 'No contact'}
                     </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-gray-500 font-mono">ID: {latestUser.uid.substring(0, 8)}...</span>
+                      <button
+                        onClick={() => handleCopyUserId(latestUser.uid)}
+                        className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded transition-colors"
+                        title="Copy full User ID"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-1 md:gap-2 flex-shrink-0">
+                  <div className="flex gap-1 md:gap-2 flex-shrink-0 flex-wrap">
                     <button
                       onClick={() => handleWhatsApp(latestUser)}
                       className="text-green-600 hover:text-green-900 p-1.5 md:p-2 hover:bg-green-50 rounded-lg transition-colors"
@@ -632,6 +705,13 @@ export default function UsersPage() {
                       title="View location on map"
                     >
                       <MapPin className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleOpenPlanModal(latestUser)}
+                      className="text-purple-600 hover:text-purple-900 p-1.5 md:p-2 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Manage subscription plan"
+                    >
+                      <Crown className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
                     <button
                       onClick={() => handleEdit(user)}
@@ -688,6 +768,45 @@ export default function UsersPage() {
                       <span className="font-medium text-gray-900 capitalize">{lookingFor.join(', ')}</span>
                     </div>
                   )}
+                </div>
+
+                {/* Current Subscription Plan */}
+                <div className="mb-4 pb-4 border-b">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600 font-medium">Current Plan:</span>
+                    {loadingSubscriptions[latestUser.uid] ? (
+                      <span className="text-xs text-gray-400 italic">Loading...</span>
+                    ) : userSubscriptions[latestUser.uid] ? (
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                          userSubscriptions[latestUser.uid].currentPlan === 'free'
+                            ? 'bg-gray-100 text-gray-800'
+                            : userSubscriptions[latestUser.uid].currentPlan === 'daily'
+                            ? 'bg-blue-100 text-blue-800'
+                            : userSubscriptions[latestUser.uid].currentPlan === 'weekly'
+                            ? 'bg-purple-100 text-purple-800'
+                            : userSubscriptions[latestUser.uid].currentPlan === 'monthly'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {userSubscriptions[latestUser.uid].currentPlan === 'free' ? '🆓 Free' :
+                           userSubscriptions[latestUser.uid].currentPlan === 'daily' ? '📅 Daily' :
+                           userSubscriptions[latestUser.uid].currentPlan === 'weekly' ? '📆 Weekly' :
+                           userSubscriptions[latestUser.uid].currentPlan === 'monthly' ? '👑 Monthly' :
+                           userSubscriptions[latestUser.uid].currentPlan?.toUpperCase() || 'FREE'}
+                        </span>
+                        {userSubscriptions[latestUser.uid].isActive && userSubscriptions[latestUser.uid].planEndDate && (
+                          <span className="text-xs text-gray-500">
+                            Until {format(new Date(userSubscriptions[latestUser.uid].planEndDate), 'MMM dd')}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                        🆓 Free
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Interests */}
@@ -1013,6 +1132,22 @@ export default function UsersPage() {
             setShowCreateModal(false);
             setShowEditModal(false);
             setSelectedUser(null);
+          }}
+        />
+      )}
+
+      {/* Plan Assignment Modal */}
+      {showPlanModal && selectedUserForPlan && (
+        <PlanAssignmentModal
+          user={selectedUserForPlan}
+          onClose={() => {
+            setShowPlanModal(false);
+            setSelectedUserForPlan(null);
+          }}
+          onSuccess={() => {
+            setShowPlanModal(false);
+            setSelectedUserForPlan(null);
+            loadUsers();
           }}
         />
       )}
@@ -1531,6 +1666,316 @@ function UserModal({
             >
               <Save className="w-4 h-4 md:w-5 md:h-5" />
               {saving ? 'Saving...' : 'Save User'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PlanAssignmentModal({
+  user,
+  onClose,
+  onSuccess
+}: {
+  user: UserProfile;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState<string>('');
+  const [adminNote, setAdminNote] = useState<string>('');
+  const [currentSubscription, setCurrentSubscription] = useState<any>(null);
+
+  // Fetch plans and current subscription on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoadingData(true);
+      try {
+        const { getSubscriptionPlans, getUserSubscription } = await import('@/services/subscriptions');
+        const [fetchedPlans, subscription] = await Promise.all([
+          getSubscriptionPlans(),
+          getUserSubscription(user.uid)
+        ]);
+        console.log('Fetched subscription for modal:', subscription);
+        setPlans(fetchedPlans);
+        setCurrentSubscription(subscription || { currentPlan: 'free', isActive: false });
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setCurrentSubscription({ currentPlan: 'free', isActive: false });
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    fetchData();
+  }, [user.uid]);
+
+  // Auto-calculate end date when plan or start date changes
+  useEffect(() => {
+    if (selectedPlan && startDate) {
+      const plan = plans.find(p => p.id === selectedPlan);
+      if (plan) {
+        const start = new Date(startDate);
+        const end = new Date(start);
+        end.setDate(end.getDate() + plan.duration);
+        setEndDate(end.toISOString().split('T')[0]);
+      }
+    }
+  }, [selectedPlan, startDate, plans]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedPlan) {
+      alert('Please select a plan');
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      alert('Please select start and end dates');
+      return;
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (end <= start) {
+      alert('End date must be after start date');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { assignPlanToUser } = await import('@/services/subscriptions');
+      await assignPlanToUser(
+        user.uid,
+        selectedPlan as 'daily' | 'weekly' | 'monthly' | 'free',
+        start,
+        end,
+        adminNote || 'Manual plan assignment from admin panel'
+      );
+
+      alert(`Successfully assigned ${selectedPlan} plan to ${user.firstName || user.uid}`);
+      onSuccess();
+    } catch (error) {
+      console.error('Error assigning plan:', error);
+      alert('Failed to assign plan. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Assign Subscription Plan</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* User Info */}
+        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-2">User Information</h3>
+          <p className="text-sm text-gray-600">Name: {user.firstName} {user.lastName}</p>
+          <p className="text-sm text-gray-600">Phone: {user.phoneNumber}</p>
+          <p className="text-sm text-gray-600 font-mono">ID: {user.uid}</p>
+        </div>
+
+        {/* Current Subscription */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+            <Crown className="w-5 h-5" />
+            Current Subscription
+          </h3>
+          {loadingData ? (
+            <div className="flex items-center justify-center py-4">
+              <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
+              <span className="ml-2 text-sm text-blue-800">Loading subscription...</span>
+            </div>
+          ) : currentSubscription ? (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-blue-800">Plan:</span>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  currentSubscription.currentPlan === 'free'
+                    ? 'bg-gray-100 text-gray-800'
+                    : currentSubscription.currentPlan === 'daily'
+                    ? 'bg-blue-100 text-blue-800'
+                    : currentSubscription.currentPlan === 'weekly'
+                    ? 'bg-purple-100 text-purple-800'
+                    : currentSubscription.currentPlan === 'monthly'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {currentSubscription.currentPlan?.toUpperCase() || 'FREE'}
+                </span>
+              </div>
+              {currentSubscription.planStartDate && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-blue-800">Start Date:</span>
+                  <span className="text-sm font-medium text-blue-900">
+                    {format(new Date(currentSubscription.planStartDate), 'MMM dd, yyyy')}
+                  </span>
+                </div>
+              )}
+              {currentSubscription.planEndDate && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-blue-800">End Date:</span>
+                  <span className="text-sm font-medium text-blue-900">
+                    {format(new Date(currentSubscription.planEndDate), 'MMM dd, yyyy')}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-blue-800">Status:</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                  currentSubscription.isActive
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {currentSubscription.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              {currentSubscription.swipesLimit !== undefined && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-blue-800">Daily Swipes:</span>
+                  <span className="text-sm font-medium text-blue-900">
+                    {currentSubscription.swipesLimit === -1 ? 'Unlimited' : currentSubscription.swipesLimit}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-blue-800">Plan:</span>
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                  FREE
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-blue-800">Status:</span>
+                <span className="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800">
+                  Inactive
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-blue-800">Daily Swipes:</span>
+                <span className="text-sm font-medium text-blue-900">5</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Plan Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Plan *
+            </label>
+            <select
+              value={selectedPlan}
+              onChange={(e) => setSelectedPlan(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              required
+            >
+              <option value="">Choose a plan...</option>
+              <option value="free">Free Plan (5 swipes/day)</option>
+              {plans.filter(p => p.active).map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.displayName} - ₹{plan.price} ({plan.duration} days, {plan.swipeLimit === -1 ? 'Unlimited' : plan.swipeLimit} swipes/day)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Selection */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Start Date *
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                End Date *
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                required
+              />
+              {selectedPlan && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Auto-calculated based on plan duration
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Duration Display */}
+          {startDate && endDate && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm font-medium text-blue-900">
+                Plan Duration: {Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))} days
+              </p>
+            </div>
+          )}
+
+          {/* Admin Note */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Admin Note (Optional)
+            </label>
+            <textarea
+              value={adminNote}
+              onChange={(e) => setAdminNote(e.target.value)}
+              placeholder="Add a note about this plan assignment..."
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            />
+          </div>
+
+          {/* Warning */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-sm text-yellow-800">
+              <strong>Note:</strong> This will immediately update the user's subscription. The user's current swipes will be reset to 0.
+            </p>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-end gap-4 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Crown className="w-5 h-5" />
+              {loading ? 'Assigning...' : 'Assign Plan'}
             </button>
           </div>
         </form>

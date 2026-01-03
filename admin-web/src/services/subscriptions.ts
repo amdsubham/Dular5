@@ -393,6 +393,69 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
   }
 }
 
+/**
+ * Manually assign a subscription plan to a user (Admin function)
+ * Creates or updates userSubscription with all required fields
+ */
+export async function assignPlanToUser(
+  userId: string,
+  planId: 'daily' | 'weekly' | 'monthly' | 'free',
+  startDate: Date,
+  endDate: Date,
+  adminNote?: string
+): Promise<void> {
+  try {
+    // Get the plan details to get swipe limit
+    const plan = await getSubscriptionPlan(planId);
+    if (!plan && planId !== 'free') {
+      throw new Error(`Plan ${planId} not found`);
+    }
+
+    // Get existing subscription or create default values
+    const existingSubscription = await getUserSubscription(userId);
+
+    const swipesLimit = planId === 'free' ? 5 : (plan?.swipeLimit || -1);
+    const isPremium = planId !== 'free';
+    const isActive = endDate > new Date();
+
+    // Prepare subscription data with all required fields
+    const subscriptionData = {
+      userId,
+      currentPlan: planId,
+      planStartDate: Timestamp.fromDate(startDate),
+      planEndDate: Timestamp.fromDate(endDate),
+      swipesUsedToday: 0, // Reset swipes on new plan
+      swipesLimit,
+      lastSwipeDate: Timestamp.fromDate(new Date()),
+      totalSwipesAllTime: existingSubscription?.totalSwipesAllTime || 0,
+      isActive,
+      isPremium,
+      autoRenew: false, // Manual assignment doesn't auto-renew
+      paymentHistory: existingSubscription?.paymentHistory || [],
+      createdAt: existingSubscription?.createdAt
+        ? Timestamp.fromDate(existingSubscription.createdAt)
+        : Timestamp.now(),
+      updatedAt: Timestamp.now(),
+      // Add admin assignment metadata
+      lastAdminUpdate: {
+        updatedBy: 'admin',
+        updatedAt: Timestamp.now(),
+        note: adminNote || 'Manual plan assignment',
+        previousPlan: existingSubscription?.currentPlan || 'none',
+      },
+    };
+
+    // Update or create the subscription document
+    const subscriptionRef = doc(db, 'userSubscriptions', userId);
+    await setDoc(subscriptionRef, subscriptionData, { merge: true });
+
+    console.log(`✅ Successfully assigned ${planId} plan to user ${userId}`);
+  } catch (error) {
+    console.error('Error assigning plan to user:', error);
+    throw error;
+  }
+}
+
 // ============================================================================
 // Transactions
 // ============================================================================
