@@ -3,6 +3,7 @@
 ## ✅ **Implementation Complete!**
 
 Your app now uses:
+
 - ✅ Your custom OTP API (`odicult.fruitnasta.com`)
 - ✅ Firebase email/password authentication
 - ✅ Works in Expo Go (no build needed!)
@@ -12,11 +13,13 @@ Your app now uses:
 ## 🚀 **Quick Test Commands**
 
 ### **Start the App:**
+
 ```bash
 npx expo start
 ```
 
 **Then press:**
+
 - `a` for Android
 - `i` for iOS
 - Scan QR code with Expo Go app
@@ -26,6 +29,7 @@ npx expo start
 ## 📱 **Test Flow**
 
 ### **Step 1: Enter Phone Number**
+
 ```
 Phone: 7008105210
        (or any 10-digit number)
@@ -34,6 +38,7 @@ Phone: 7008105210
 ### **Step 2: Click Next**
 
 **Expected Console Logs:**
+
 ```
 📱 Sending OTP to: 7008105210
 🔐 Generated OTP: 123456  ← Use this OTP!
@@ -42,11 +47,13 @@ Phone: 7008105210
 ```
 
 ### **Step 3: Enter OTP**
+
 ```
 OTP: 123456  (from console logs above)
 ```
 
 **Expected Console Logs:**
+
 ```
 🔐 Verifying OTP...
 Entered: 123456 Stored: 123456
@@ -60,6 +67,7 @@ Entered: 123456 Stored: 123456
 ```
 
 ### **Step 4: Success!**
+
 ```
 ✅ Navigate to next screen
 ✅ User authenticated
@@ -122,12 +130,14 @@ Expected:
 ## 🔍 **Where to Find the OTP**
 
 ### **Option 1: Console Logs (Development)**
+
 ```bash
 # Look for this line in terminal:
 🔐 Generated OTP: 123456
 ```
 
 ### **Option 2: User's Phone (Production)**
+
 ```
 User receives SMS with OTP
 Via your API: odicult.fruitnasta.com
@@ -138,6 +148,7 @@ Via your API: odicult.fruitnasta.com
 **For testing, you can modify the code temporarily:**
 
 In `services/auth.ts` line 40:
+
 ```typescript
 // Change from random OTP:
 const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -231,6 +242,7 @@ tail -f test.log | grep "Generated OTP"
 ### **Issue 1: Can't find OTP in console**
 
 **Solution:**
+
 ```bash
 # Clear logs and restart
 npx expo start --clear
@@ -242,14 +254,16 @@ npx expo start | grep "Generated OTP"
 ### **Issue 2: API call fails**
 
 **Check:**
+
 ```bash
 # Test API directly with curl:
-curl -X POST https://odicult.fruitnasta.com/api/user/sendotp \
+curl -X POST https://us-central1-dular5.cloudfunctions.net/api/api/user/sendotp \
   -H "Content-Type: application/json" \
   -d '{"phoneNumber":"7008105210","assignedOtp":"123456"}'
 ```
 
 **Expected Response:**
+
 ```json
 {
   "status": "OK",
@@ -260,12 +274,14 @@ curl -X POST https://odicult.fruitnasta.com/api/user/sendotp \
 ### **Issue 3: Firebase auth fails**
 
 **Check Console Logs:**
+
 ```
 ❌ Error code: auth/...
 ❌ Error message: ...
 ```
 
 **Common Fixes:**
+
 - Enable Email/Password auth in Firebase Console
 - Check network connection
 - Verify Firebase config is correct
@@ -273,6 +289,7 @@ curl -X POST https://odicult.fruitnasta.com/api/user/sendotp \
 ### **Issue 4: OTP mismatch**
 
 **Solution:**
+
 ```bash
 # Make sure you're using the OTP from console:
 # Look for: 🔐 Generated OTP: 123456
@@ -327,6 +344,7 @@ Your implementation is working if:
 ## 🎯 **Expected Results**
 
 ### **Firebase Console (Authentication):**
+
 ```
 Users:
 ├── uid: "abc123..."
@@ -336,6 +354,7 @@ Users:
 ```
 
 ### **Firestore (Database):**
+
 ```
 users/
 ├── abc123.../

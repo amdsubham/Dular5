@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dular",
     "slug": "dular",
-    "version": "21.0.0",
+    "version": "22.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo_big.png",
     "splash": {
@@ -75,7 +75,7 @@
       "bundleIdentifier": "com.santali.dating"
     },
     "android": {
-      "versionCode": 21,
+      "versionCode": 22,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo_big.png",
         "backgroundColor": "#000000"
